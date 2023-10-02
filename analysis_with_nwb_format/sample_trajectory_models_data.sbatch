@@ -1,8 +1,8 @@
 #!/bin/bash
-#SBATCH --job-name=sample_for_encoding_models
-#SBATCH --output=/project/nicho/projects/dalton/job_log_files/sample_for_encoding_models.out
-#SBATCH --error=/project/nicho/projects/dalton/job_log_files/sample_for_encoding_models.err
-#SBATCH --time=24:00:00
+#SBATCH --job-name=sample_for_encoding_models_MG
+#SBATCH --output=/project/nicho/projects/dalton/job_log_files/sample_for_encoding_models_MG.out
+#SBATCH --error=/project/nicho/projects/dalton/job_log_files/sample_for_encoding_models_MG.err
+#SBATCH --time=16:00:00
 #SBATCH --partition=caslake
 #SBATCH --mem=128G
 #SBATCH --account=pi-nicho

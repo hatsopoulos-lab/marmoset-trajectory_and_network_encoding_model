@@ -33,7 +33,7 @@ from hatlab_nwb_functions import get_sorted_units_and_apparatus_kinematics_with_
 sys.path.insert(0, '/project/nicho/projects/marmosets/code_database/analysis/trajectory_encoding_model/')
 from utils import choose_units_for_model
 
-marmcode = 'TY'
+marmcode = 'MG'
 
 if marmcode=='TY':
     nwb_infile = '/project/nicho/projects/dalton/data/TY/TY20210211_freeAndMoths-003_resorted_20230612_DM.nwb' 
@@ -51,7 +51,6 @@ pkl_infile = base + 'DM' + new_tag + '.pkl'
 
 debugging=False
 redo_feature_creation=False
-fill_missing_job_files, save_task_id, fill_n_tasks = True, 244, 255
 
 use_traj_regParams_for_traj_avgPos = False
 
@@ -329,7 +328,7 @@ def train_and_test_glm(task_info, RNGs):
 
 def add_tmp_files_to_pkl():   
 
-    job_array_files = sorted(glob.glob(os.path.join(tmp_job_array_folder, '*')))
+    job_array_files = glob.glob(os.path.join(tmp_job_array_folder, '*'))    
 
     for job_file in job_array_files:
         with open(job_file, 'rb') as f:
@@ -467,9 +466,6 @@ if __name__ == "__main__":
     if debugging:
         task_id = 3
         n_tasks = 1
-    elif fill_missing_job_files:
-        task_id = int(os.getenv('SLURM_ARRAY_TASK_ID'))
-        n_tasks = fill_n_tasks           
     else:
         task_id = int(os.getenv('SLURM_ARRAY_TASK_ID'))
         n_tasks = int(os.getenv('SLURM_ARRAY_TASK_COUNT'))       
@@ -478,7 +474,7 @@ if __name__ == "__main__":
         results_dict = dill.load(f)
     
     n_tasks_needed = len(results_dict.keys()) * params.num_models_including_shuffles * len(params.iter_ranges)
-    if n_tasks != n_tasks_needed and not debugging and not fill_missing_job_files:
+    if n_tasks != n_tasks_needed and not debugging:
         print('number of jobs in array (%d) does not equal necessary number of models %d' % (n_tasks, n_tasks_needed))
         print('ending job', flush=True)
     else:
@@ -499,7 +495,7 @@ if __name__ == "__main__":
         
         print('\n\n Finished running models  at %s\n\n' % time.strftime('%c', time.localtime()), flush=True)
         
-        if task_id == n_tasks-1 or (fill_missing_job_files and task_id==save_task_id):
+        if task_id == n_tasks-1:
             while len(glob.glob(os.path.join(tmp_job_array_folder, '*'))) < n_tasks:
                 completed_jobs = len(glob.glob(os.path.join(tmp_job_array_folder, '*')))
                 print(f'completed jobs = {completed_jobs}, n_tasks = {n_tasks}. Waiting for all jobs to finish model creation', flush=True)

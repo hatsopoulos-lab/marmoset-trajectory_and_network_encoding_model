@@ -16,7 +16,12 @@ import neo
 import elephant
 from quantities import s
 from os.path import join as pjoin
+from scipy.stats import median_test
+import os
 import seaborn as sns
+import dill
+from scipy.signal import savgol_filter, medfilt
+import pandas as pd
 
 sys.path.insert(0, '/project/nicho/projects/marmosets/code_database/data_processing/nwb_tools/hatlab_nwb_tools/')
 from hatlab_nwb_functions import remove_duplicate_spikes_from_good_single_units, get_raw_timestamps   
@@ -25,9 +30,18 @@ from hatlab_nwb_functions import remove_duplicate_spikes_from_good_single_units,
 #nwb_file = '/project/nicho/data/marmosets/electrophys_data_for_processing/TY20210211_freeAndMoths/TY20210211_freeAndMoths-003.nwb'
 #nwb_file = '/project/nicho/data/marmosets/electrophys_data_for_processing/MG20230416_1505_mothsAndFree/MG20230416_1505_mothsAndFree-002_acquisition.nwb'
 # nwb_acquisition_file = '/project/nicho/data/marmosets/electrophys_data_for_processing/TY20210211_freeAndMoths/TY20210211_freeAndMoths-003_acquisition.nwb'
-nwb_analysis_file   = '/project/nicho/data/marmosets/electrophys_data_for_processing/MG20230416_1505_mothsAndFree/MG20230416_1505_mothsAndFree-002_processed.nwb' 
 
-plot_storage = '/project/nicho/projects/dalton/plots/MG20230416/reaching_PETHs'
+marmcode = 'MG'
+
+if marmcode == 'TY':
+    nwb_analysis_file = '/beagle3/nicho/projects/dalton/data/TY/TY20210211_freeAndMoths-003_resorted_20230612_DM.nwb'
+    plot_storage = '/project/nicho/projects/dalton/plots/TY20210211/reaching_PETHs'
+    reach_specific_units = [15, 19, 26, 48, 184, 185, 246, 267, 273, 321, 327, 358, 375, 417, 457, 762, 790, 856, 887]
+elif marmcode == 'MG':
+    nwb_analysis_file = '/beagle3/nicho/projects/dalton/data/MG/MG20230416_1505_mothsAndFree-002_processed_DM.nwb'
+    plot_storage = '/project/nicho/projects/dalton/plots/MG20230416/reaching_PETHs'
+
+os.makedirs(plot_storage, exist_ok=True)
 
 def get_sorted_units_and_apparatus_kinematics_with_metadata(nwb_prc, reaches_key, plot=False):
     units          = nwb_prc.units.to_dataframe()
@@ -39,7 +53,7 @@ def get_sorted_units_and_apparatus_kinematics_with_metadata(nwb_prc, reaches_key
     
     return units, reaches, kin_module
 
-def get_aligned_spiketrains_and_PETH(units, spike_times, align_times, preTime=1, postTime=1):
+def get_aligned_spiketrains_and_PETH(units, spike_times, align_times, preTime=1, postTime=1, mod_index_mode = 'start'):
 
     spiketrains = [[] for i in align_times]
     for idx, t_align in enumerate(align_times):
@@ -56,32 +70,88 @@ def get_aligned_spiketrains_and_PETH(units, spike_times, align_times, preTime=1,
                                               output='rate', 
                                               binary=False)
     
-    return spiketrains, PETH
+    if mod_index_mode == 'savgol':
+        savFilt = savgol_filter(PETH.as_array().flatten(), 13, 3)
+        # savFilt = medfilt(PETH.as_array().flatten(), 7)
+
+        # mod_index = round((savFilt.max() - savFilt.min())/savFilt.mean(), 2)
+        mod_index = round((savFilt.max() - savFilt.min()), 2)
+
+    else:
+        center_bin = int(preTime / .05)
+        if mod_index_mode == 'start':
+            baseline_bins = list(range(0, int(center_bin-.25/.05)))
+            mod_bins = list(range(center_bin, int(center_bin+.75/.05+1)))
+        elif mod_index_mode == 'stop':
+            baseline_bins = list(range(0, center_bin))
+            mod_bins = list(range(center_bin, int(center_bin+postTime/.05+1)))
+        elif mod_index_mode == 'peak':
+            baseline_bins = list(range(0, int(center_bin-.75/.05+1))) + list(range(int(center_bin+.75/.05), int(center_bin+postTime/.05+1)))
+            mod_bins = list(range(int(center_bin-.25/.05), int(center_bin+.25/.05+1)))
+        
+        baseline_mask = np.array([True if idx in baseline_bins else False for idx in range(PETH.shape[0])])
+        mod_mask      = np.array([True if idx in      mod_bins else False for idx in range(PETH.shape[0])])
+    
+        mod_index = round(PETH.as_array()[mod_mask].mean() / PETH.as_array()[baseline_mask].mean(), 2)
+            
+    return spiketrains, PETH, mod_index
 
 def generate_PETHs_aligned_to_reaching(units, reaches, kin_module, preTime=1, postTime=1):
     reach_start_times = [reach.start_time for idx, reach in reaches.iterrows()]
     reach_end_times   = [reach.stop_time for idx, reach in reaches.iterrows()]
-    reach_peak_times  = [float(reach.peak_extension_times.split(',')[0]) for idx, reach in reaches.iterrows()]
+    reach_peak_times  = [float(reach.peak_extension_times.split(',')[0]) for idx, reach in reaches.iterrows() if len(reach.peak_extension_times)>0]
+    
+    modulation_df = pd.DataFrame()
     for units_row, unit in units.iterrows():
+        
+        # if int(unit.unit_name) < 260:
+        #     continue
+    
+        if reach_specific_units is None:
+            fg = 'none'
+        elif int(unit.unit_name) in reach_specific_units:
+            fg = 'Reach-Specific'
+        else:
+            fg = 'Non-Specific'
+    
         spike_times = unit.spike_times
         
-        spiketrains_RS, PETH_RS = get_aligned_spiketrains_and_PETH(units, spike_times, reach_start_times, preTime=preTime, postTime=postTime)
-        spiketrains_RE, PETH_RE = get_aligned_spiketrains_and_PETH(units, spike_times, reach_end_times  , preTime=preTime, postTime=postTime)
-        spiketrains_RP, PETH_RP = get_aligned_spiketrains_and_PETH(units, spike_times, reach_peak_times , preTime=preTime, postTime=postTime)
-
+        spiketrains_RS, PETH_RS, mod_RS = get_aligned_spiketrains_and_PETH(units, spike_times, reach_start_times, preTime=preTime, postTime=postTime, mod_index_mode = 'savgol')
+        spiketrains_RE, PETH_RE, mod_RE = get_aligned_spiketrains_and_PETH(units, spike_times, reach_end_times  , preTime=preTime, postTime=postTime, mod_index_mode = 'savgol')
+        spiketrains_RP, PETH_RP, mod_RP = get_aligned_spiketrains_and_PETH(units, spike_times, reach_peak_times , preTime=preTime, postTime=postTime, mod_index_mode = 'savgol')
 
         PETH_ymax = np.max([np.max(PETH_RS.magnitude.flatten()), np.max(PETH_RP.magnitude.flatten()), np.max(PETH_RE.magnitude.flatten())])
-        fig, ((P0, P1, P2), (R0, R1, R2)) = plt.subplots(2, 3, sharex='col', figsize=(8, 6), dpi=300)
+        PETH_ymin = np.max([np.min(PETH_RS.magnitude.flatten()), np.min(PETH_RP.magnitude.flatten()), np.min(PETH_RE.magnitude.flatten())])
+
+        fig, ((P0, P1, P2), (M0, M1, M2), (R0, R1, R2)) = plt.subplots(3, 3, sharex='col', figsize=(8, 8), dpi=300)
         left_plots = True
-        for axP, axR, spiketrains, PETH, label in zip([P0, P1, P2], 
-                                                      [R0, R1, R2], 
-                                                      [spiketrains_RS, spiketrains_RP, spiketrains_RE], 
-                                                      [PETH_RS, PETH_RP, PETH_RE],
-                                                      ['RO', 'RP', 'RE']):
+        
+        mod_list = []
+        dev_list = []
+        mod_label_list = []
+        dev_label_list = []
+        for axP, axM, axR, spiketrains, PETH, label, mod in zip([P0, P1, P2],
+                                                                [M0, M1, M2],
+                                                                [R0, R1, R2], 
+                                                                [spiketrains_RS, spiketrains_RP, spiketrains_RE], 
+                                                                [PETH_RS, PETH_RP, PETH_RE],
+                                                                ['RO', 'RP', 'RE'],
+                                                                [mod_RS, mod_RP, mod_RE]):
 
             axP.bar(PETH.times, PETH.magnitude.flatten(), width=PETH.sampling_period, align='edge', alpha=0.3, label='time histogram (rate)')
             axP.vlines(0, 0, PETH_ymax, colors='black', linestyles='solid')
-            axP.set_ylim(0, np.ceil(PETH_ymax)+1)
+            axP.set_ylim(0, np.ceil(PETH_ymax)+1)            
+            
+            savFilt = savgol_filter(PETH.as_array().flatten(), 13, 3)
+            # savFilt = medfilt(PETH.as_array().flatten(), 7)
+
+            deviance = round(np.max(np.abs(savFilt - np.linspace(savFilt[0], savFilt[-1], PETH.shape[0]))), 1)
+            axP.plot(PETH.times, savFilt, '-r')
+            
+            axM.plot(PETH.times, savFilt, '-r')
+            axM.plot(PETH.times, np.linspace(savFilt[0], savFilt[-1], PETH.shape[0]), '-k')
+            axM.set_ylim(np.floor(PETH_ymin), np.floor(PETH_ymin)+40)
+            
             
             axR.eventplot([st.magnitude for st in spiketrains], linelengths=0.75, linewidths=0.75, color='black')
             axR.vlines(0, 0, len(spiketrains), colors='black', linestyles='solid')
@@ -90,6 +160,7 @@ def generate_PETHs_aligned_to_reaching(units, reaches, kin_module, preTime=1, po
             axR.set_ylim(0, len(spiketrains))
             axR.set_xticks([-1*preTime, 0, postTime])
             axR.set_xticklabels([-1*preTime, label, postTime])
+            axR.set_title(f'mod = {mod}, dev={deviance}')
 
 
             if left_plots:
@@ -118,6 +189,11 @@ def generate_PETHs_aligned_to_reaching(units, reaches, kin_module, preTime=1, po
                 sns.despine(ax=axR, top=True, left=True, right=True)
                 axP.set_yticks([])
                 axR.set_yticks([])
+            
+            mod_list.append(mod)
+            dev_list.append(deviance)
+            mod_label_list.append(f'modulation_{label}')
+            dev_label_list.append(f'maxDev_{label}')
         
         plt.savefig(pjoin(plot_storage, 'unit_%s.png' % unit.unit_name), dpi='figure', format=None, metadata=None,
                     bbox_inches=None, pad_inches=0.1,
@@ -127,6 +203,26 @@ def generate_PETHs_aligned_to_reaching(units, reaches, kin_module, preTime=1, po
         
         plt.show()
         
+        tmp_df = pd.DataFrame(data=mod_list + dev_list + [unit.unit_name] + [fg]).T
+        tmp_df.columns = mod_label_list + dev_label_list + ['unit_name'] + ['FG']
+        modulation_df = pd.concat((modulation_df, tmp_df), axis=0, ignore_index=True)
+        # if units_row > 50:
+        #     break
+    return modulation_df     
+
+def modulation_in_functional_group(modulation_df, metric='modulation_RO', hue_order=None):
+    
+    med_out = median_test(modulation_df.loc[modulation_df['FG'] == 'Reach-Specific', metric].astype(float), 
+                          modulation_df.loc[modulation_df['FG'] ==   'Non-Specific', metric].astype(float))
+    print(f'{metric}: RS v NS, p={np.round(med_out[1], 4)}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
+    
+    fig, ax = plt.subplots(figsize=(5, 3))
+    sns.kdeplot(data=modulation_df, ax=ax, x=metric, hue='FG',
+                palette='Dark2', hue_order=hue_order,
+                common_norm=False, cumulative=True, legend=False)
+    ax.text(modulation_df[metric].max()*0.9, 0.25, f'p={np.round(med_out[1], 4)}', horizontalalignment='center', fontsize = 12)
+    plt.show()
+
 
 if __name__ == '__main__':
     # io_acq = NWBHDF5IO(nwb_acquisition_file, mode='r')
@@ -139,9 +235,18 @@ if __name__ == '__main__':
     
     units, reaches, kin_module = get_sorted_units_and_apparatus_kinematics_with_metadata(nwb_prc, reaches_key, plot=False)
 
-    generate_PETHs_aligned_to_reaching(units, reaches, kin_module, preTime=1, postTime=1)
+    modulation_df = generate_PETHs_aligned_to_reaching(units, reaches, kin_module, preTime=1, postTime=1)
     
     io_prc.close()
+        
+    for met in modulation_df.columns[:6]:
+        modulation_df[met] = modulation_df[met].astype(float)
+        modulation_in_functional_group(modulation_df, metric=met, hue_order=['Reach-Specific', 'Non-Specific'])
+    
+    with open(f'{nwb_analysis_file.split(".nwb")[0]}_modulationData.pkl', 'wb') as f:
+        dill.dump(modulation_df, f, recurse=True) 
+    
+    
 # unit_to_plot = units.loc[units.electrode_label == elabel, :]
 # spike_times = unit_to_plot.spike_times.iloc[0]
 # # Get electrodes table, extract the channel index matching the desired electrode_label

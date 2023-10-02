@@ -47,14 +47,12 @@ if marmcode=='TY':
     pkl_infile = '/project/nicho/projects/dalton/data/TY/TY20210211_freeAndMoths-003_resorted_20230612_DM_FINAL_trajectory_shuffled_encoding_models_30ms_shift_v3.pkl'
     # pkl_infile = '/project/nicho/projects/dalton/data/TY/TY20210211_freeAndMoths-003_resorted_20230612_DM_encoding_model_sorting_corrected_30ms_shift_v5.pkl'
     models_already_stored = False
-    extra_tag = 'tinyAlpha'
+    extra_tag = ''
 elif marmcode=='MG':
     nwb_infile = '/project/nicho/projects/dalton/data/MG/MG20230416_1505_mothsAndFree-002_processed_DM_with_functional_networks.nwb'
-    pkl_infile = '/project/nicho/projects/dalton/data/MG/MG20230416_1505_mothsAndFree-002_processed_DM_dlcIter5_resortedUnits_trajectory_shuffled_encoding_models_30ms_shift_v3.pkl'
-    # nwb_infile = '/project/nicho/projects/dalton/data/MG/MG20230416_1505_mothsAndFree-002_processed_DM_with_functional_networks_noBadUnitsList.nwb'
-    # pkl_infile = '/project/nicho/projects/dalton/data/MG/MG20230416_1505_mothsAndFree-002_processed_DM_dlcIter5_noBadUnitsList_trajectory_shuffled_encoding_models_30ms_shift_v3.pkl'
-    extra_tag = 'tinyAlpha'
-    # pkl_infile = '/project/nicho/projects/dalton/data/MG/MG20230416_1505_mothsAndFree-002_processed_DM_dlcIter5_trajectory_shuffled_encoding_models_30ms_shift_v3.pkl'
+    pkl_infile = '/project/nicho/projects/dalton/data/MG/MG20230416_1505_mothsAndFree-002_processed_DM_alpha_pt00001_removedUnits_181_440_fixedMUA_745_796_encoding_models_30ms_shift_v3.pkl'
+    # pkl_infile = '/project/nicho/projects/dalton/data/MG/MG20230416_1505_mothsAndFree-002_processed_DM_dlcIter5_resortedUnits_trajectory_shuffled_encoding_models_30ms_shift_v3.pkl'
+    extra_tag = ''
 
     models_already_stored = False
 
@@ -936,7 +934,18 @@ if __name__ == "__main__":
                                          'FN_key'                : ['spontaneous_FN', 'spontaneous_FN'],
                                          'trained_glm_source'    : ['spontaneous_FN', 'kin_model_spontaneous_FN'],
                                          'save_GLMs'             : [True, True],
-                                         'save_network_features' : [True, False]},}
+                                         'save_network_features' : [True, False]},
+                    'strength_shuffles': {'model_names'           : ['kin_model_tmp', 'kin_model_tmp'],
+                                          'shuf_mode'             : ['strength', 'random'],
+                                          'edges_to_shuffle'      : ['weights','topology'],
+                                          'percents'              : [1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 99],
+                                          'retrain_model'         : False,
+                                          'models_per_set'        : 84,
+                                          'FN'                    : [reach_FN.copy(), spontaneous_FN.copy(), reach_FN.copy(), spontaneous_FN.copy()],
+                                          'FN_key'                : ['reach_FN', 'spontaneous_FN'],
+                                          'trained_glm_source'    : ['kin_model_reach_FN', 'kin_model_spontaneous_FN'],
+                                          'save_GLMs'             : [False, False],
+                                          'save_network_features' : [False, False]}}
                     # 'strength_shuffles': {'model_names'           : ['kin_model_tmp', 'kin_model_tmp'],
                     #                       'shuf_mode'             : ['strength', 'random'],
                     #                       'edges_to_shuffle'      : ['weights','topology'],

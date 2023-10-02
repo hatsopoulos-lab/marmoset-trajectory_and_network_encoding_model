@@ -8,6 +8,7 @@ Created on Tue May 31 10:09:38 2022
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
 import pickle
 import dill
 import os
@@ -38,7 +39,10 @@ from utils import get_interelectrode_distances_by_unit, choose_units_for_model
 
 
 marmcode='TY'
+other_marm = 'MG'
 FN_computed = True
+
+fig_mode='pres'
 
 # nwb_infile = '/project/nicho/projects/dalton/data/TY20210211_freeAndMoths-003_DM.nwb' 
 # pkl_infile = '/project/nicho/projects/dalton/data/TY20210211_freeAndMoths-003_DM_encoding_model_regularized_results_30ms_shift_v4.pkl' #'/project/nicho/projects/dalton/data/TY20210211_freeAndMoths-003_DM_encoding_model_30ms_shift_results_v2.pkl'
@@ -48,10 +52,39 @@ if marmcode=='TY':
         nwb_infile = '/project/nicho/projects/dalton/data/TY/TY20210211_freeAndMoths-003_resorted_20230612_DM_with_functional_networks.nwb' 
     else:
         nwb_infile = '/project/nicho/projects/dalton/data/TY/TY20210211_freeAndMoths-003_resorted_20230612_DM.nwb' 
-    pkl_infile = '/project/nicho/projects/dalton/data/TY/TY20210211_freeAndMoths-003_resorted_20230612_DM_trajectory_shuffled_tortuosity_split_encoding_models_30ms_shift_v2.pkl' #'/project/nicho/projects/dalton/data/TY20210211_freeAndMoths-003_resorted_20230612_DM_encoding_model_sorting_corrected_30ms_shift_v4.pkl'
+    pkl_infile = '/project/nicho/projects/dalton/data/TY/TY20210211_freeAndMoths-003_resorted_20230612_DM_alpha_pt00001_encoding_models_30ms_shift_v2.pkl' 
+    # pkl_infile = '/project/nicho/projects/dalton/data/TY/TY20210211_freeAndMoths-003_resorted_20230612_DM_FINAL_trajectory_shuffled_encoding_models_30ms_shift_v2.pkl' #'/project/nicho/projects/dalton/data/TY20210211_freeAndMoths-003_resorted_20230612_DM_encoding_model_sorting_corrected_30ms_shift_v4.pkl'
+    
+    # pkl_infile = '/project/nicho/projects/dalton/data/TY/TY20210211_freeAndMoths-003_resorted_20230612_DM_trajectory_shuffled_tortuosity_split_encoding_models_30ms_shift_v2.pkl' #'/project/nicho/projects/dalton/data/TY20210211_freeAndMoths-003_resorted_20230612_DM_encoding_model_sorting_corrected_30ms_shift_v4.pkl'
+    bad_units_list = None
+    mua_to_fix = []
+    units_to_plot = [0, 1, 2, 3]
+    
+    unit_axlims = (np.array([-0.009687  , -0.00955038, -0.01675681]),
+                   np.array([0.02150172 , 0.02333975 , 0.01376333]))
+    
+    reaches_to_plot=[[76, 78, 79], [77, 80, 81]]
+
 elif marmcode=='MG':
-    nwb_infile   = '/project/nicho/projects/dalton/data/MG/MG20230416_1505_mothsAndFree-002_processed_DM.nwb'
-    pkl_infile = '/project/nicho/projects/dalton/data/MG/MG20230416_1505_mothsAndFree-002_processed_DM_traj_TEST_trajectory_shuffled_encoding_models_30ms_shift_v2.pkl'
+    if FN_computed:
+        nwb_infile   = '/project/nicho/projects/dalton/data/MG/MG20230416_1505_mothsAndFree-002_processed_DM_with_functional_networks.nwb'
+        # nwb_infile   = '/project/nicho/projects/dalton/data/MG/MG20230416_1505_mothsAndFree-002_processed_DM_with_functional_networks_noBadUnitsList.nwb'
+    else:
+        nwb_infile   = '/project/nicho/projects/dalton/data/MG/MG20230416_1505_mothsAndFree-002_processed_DM.nwb'
+    pkl_infile = '/project/nicho/projects/dalton/data/MG/MG20230416_1505_mothsAndFree-002_processed_DM_alpha_pt00001_removedUnits_181_440_fixedMUA_745_796_encoding_models_30ms_shift_v2.pkl'
+    # pkl_infile = '/project/nicho/projects/dalton/data/MG/MG20230416_1505_mothsAndFree-002_processed_DM_dlcIter5_noBadUnitsList_trajectory_shuffled_encoding_models_30ms_shift_v2.pkl'
+    # pkl_infile = '/project/nicho/projects/dalton/data/MG/MG20230416_1505_mothsAndFree-002_processed_DM_dlcIter5_resortedUnits_trajectory_shuffled_encoding_models_30ms_shift_v2.pkl'
+
+    bad_units_list = [181, 440] # []
+    mua_to_fix = [745, 796]
+    units_to_plot = [0, 2, 3]
+    
+    unit_axlims = (np.array([-0.009687  , -0.00955038, -0.01675681]),
+                   np.array([0.02150172 , 0.02333975 , 0.01376333]))
+
+    reaches_to_plot=[[3, 4, 5], [6, 7, 11]]
+
+    # reaches_to_plot=[[42, 44, 45], [43, 46, 47]]
 
 split_pattern = '_shift_v' # '_results_v'
 base, ext = os.path.splitext(pkl_infile)
@@ -61,20 +94,43 @@ pkl_outfile = base + split_pattern + out_version + ext
 
 dataset_code = os.path.basename(pkl_infile)[:10] 
 # plots = os.path.join(os.path.dirname(os.path.dirname(pkl_infile)), 'plots', dataset_code)
-plots = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(pkl_infile))), 'plots', dataset_code)
+# plots = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(pkl_infile))), 'plots', dataset_code)
+
+if fig_mode == 'paper':
+    plots = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(pkl_infile))), 'plots', dataset_code)
+elif fig_mode == 'pres':
+    plots = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(pkl_infile))), 'defense_plots', dataset_code)
 
 shift_set = int(pkl_infile.split('ms_shift')[0][-2:])
   
+color1     = (  0/255, 141/255, 208/255)
+color2     = (159/255, 206/255, 239/255)
+spontColor = (183/255, 219/255, 165/255)
+
 class params:
     lead = 'all' #[0.5, 0.4, 0.4, 0.3, 0.3, 0.3, 0.2, 0.2, 0.2, 0.1, 0.1, 0.1, 0  , 0  , 0  ] #[0.2, 0.15, 0.1, 0.05, 0] #[0.4, 0.35, 0.3, 0.25, 0.2, 0.15, 0.1, 0.05, 0] #[0.05] # 100ms lead time
     lag  = 'all' #[0  , 0  , 0.1, 0  , 0.1, 0.2, 0.1, 0.2, 0.3, 0.2, 0.3, 0.4, 0.3, 0.4, 0.5] #[0.2, 0.25, 0.3, 0.35, 0.4] #[0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4] #[0.35] # 300ms lag time
-    best_lead_lag_key = 'lead_200_lag_300' #None
     
     if marmcode=='TY':
         # reorder = [0, 1, 3, 2, 4, 5, 6, 8, 13, 12, 14, 15, 16, 17, 18, 11,  7,  9, 10]
-        reorder = [0, 1, 3, 2, 4, 5, 6, 12, 13, 16, 8,  14, 15, 11,  7,  9, 10]
+        # reorder = [0, 1, 3, 2, 4, 5, 6, 12, 13, 16, 8,  14, 15, 11,  7,  9, 10]
+        best_lead_lag_key = 'lead_100_lag_300' #None
+
+        cortical_boundaries = {'x_coord'      : [   0,          400,  800, 1200,         1600, 2000, 2400, 2800, 3200, 3600],
+                               'y_bound'      : [None,         1600, None, None,         1200, None, None, None, None, None],
+                               'areas'        : ['3b', ['3a', '3b'], '3a', '3a', ['M1', '3a'], 'M1', 'M1', 'M1', 'M1', 'M1'],
+                               'unique_areas' : ['3b', '3a', 'M1']}
     elif marmcode=='MG':
-        reorder = [0]
+        # reorder = [0]
+        # reorder = [0, 1, 3, 2, 4, 5, 6, 12, 13, 16, 8,  14, 15, 11,  7,  9, 10]
+        best_lead_lag_key = 'lead_100_lag_300' #None
+
+        cortical_boundaries = {'x_coord'      : [    0,   400,  800, 1200, 1600, 2000, 2400, 2800, 3200, 3600],
+                               'y_bound'      : [ None,  None, None, None, None, None, None, None, None, None],
+                               'areas'        : ['6dc', '6dc', 'M1', 'M1', 'M1', 'M1', 'M1', '3a', '3a', '3a'],
+                               'unique_areas' : ['6dc', 'M1', '3a']}
+        
+    mua_to_fix=mua_to_fix
     # reorder = [0, 1, 3, 2, 4, 5, 6, 7, 9, 8, 10, 11, 12, 13, 14, 15]
     # reorder = [0, 1, 3, 2, 4, 5, 6, 7, 8 , 9 , 10 ]
 
@@ -83,28 +139,203 @@ class params:
     snr_thresh = 3
     significant_proportion_thresh = 0.95
     nUnits_percentile = 60
-    # primary_traj_model = 'traj_and_avgPos'
     primary_traj_model = 'traj_avgPos'
+    shuffle_to_test = 'shuffled_traj'
+
+    apparatus_dimensions = [14, 12.5, 7]#[14, 12.5, 13]
 
     # cortical_boundaries = {'x_coord'      : [   0,          400,  800, 1200,         1600, 2000, 2400, 2800,          3200,          3600],
     #                         'y_bound'      : [None,         1200, None, None,         1200, None, None, None,           800,          2000],
     #                         'areas'        : ['3b', ['3a', '3b'], '3a', '3a', ['M1', '3a'], 'M1', 'M1', 'M1', ['6Dc', 'M1'], ['6Dc', 'M1']],
     #                         'unique_areas' : ['3b', '3a', 'M1', '6Dc']}
-
-    cortical_boundaries = {'x_coord'      : [   0,          400,  800, 1200,         1600, 2000, 2400, 2800, 3200, 3600],
-                            'y_bound'      : [None,         1200, None, None,         1200, None, None, None, None, None],
-                            'areas'        : ['3b', ['3a', '3b'], '3a', '3a', ['M1', '3a'], 'M1', 'M1', 'M1', 'M1', 'M1'],
-                            'unique_areas' : ['3b', '3a', 'M1']}
-        
 class plot_params:
-    axis_fontsize = 24
-    dpi = 300
-    axis_linewidth = 2
-    tick_length = 2
-    tick_width = 1
-    map_figSize = (6, 8)
-    tick_fontsize = 18
-    aucScatter_figSize = (7, 7)
+    # axis_fontsize = 24
+    # dpi = 300
+    # axis_linewidth = 2
+    # tick_length = 2
+    # tick_width = 1
+    # map_figSize = (6, 8)
+    # tick_fontsize = 18
+    # aucScatter_figSize = (7, 7)
+    
+    figures_list = ['Fig1', 'Fig2', 'Fig3', 'Fig4', 'Fig5', 'Fig6', 'Fig7', 'FigS1',  'FigS2',  'FigS3',  'FigS4', 'FigS5', 'unknown']
+
+    if fig_mode == 'paper':
+        axis_fontsize = 8
+        dpi = 300
+        axis_linewidth = 1
+        tick_length = 1.75
+        tick_width = 0.5
+        tick_fontsize = 8
+        
+        spksamp_markersize = 4
+        vel_markersize = 2
+        scatter_markersize = 8
+        stripplot_markersize = 2
+        feature_corr_markersize = 8
+        wji_vs_trajcorr_markersize = 2
+        reach_sample_markersize = 4
+        
+        corr_marker_color = 'gray'
+        
+        traj_pos_sample_figsize = (1.75, 1.75)
+        traj_vel_sample_figsize = (1.5 ,  1.5)
+        traj_linewidth = 1
+        traj_leadlag_linewidth = 2
+        reach_sample_linewidth = 1
+        
+        preferred_traj_linewidth = .5
+        distplot_linewidth = 1
+        preferred_traj_figsize = (1.75, 1.75)
+        
+        weights_by_distance_figsize = (2.5, 1.5)
+        aucScatter_figSize = (1.75, 1.75)
+        FN_figsize = (3, 3)
+        feature_corr_figSize = (1.75, 1.75)
+        pearsonr_histsize = (1.5, 1.5)
+        distplot_figsize = (1.5, 1)
+        shuffle_figsize = (8, 3)
+        stripplot_figsize = (5, 2)
+        scatter_figsize = (1.75, 1.75)
+        reach_sample_figsize = (2.5, 2.25)
+        
+        boxplot_figsize = (3.5, 1.75)
+        boxplot_boxwidth = .5
+
+        trajlength_figsize = (1.75, 1.75)
+        trajlength_markersize = 6
+        trajlength_linewidth = 1
+
+    elif fig_mode == 'pres':
+        axis_fontsize = 20
+        dpi = 300
+        axis_linewidth = 2
+        tick_length = 2
+        tick_width = 1
+        tick_fontsize = 18
+          
+        spksamp_markersize = 4
+        vel_markersize = 2
+        traj_length_markersize = 6
+        scatter_markersize = 8
+        stripplot_markersize = 2
+        feature_corr_markersize = 8
+        wji_vs_trajcorr_markersize = 2
+        reach_sample_markersize = 4
+                
+        traj_pos_sample_figsize = (4.5, 4.5)
+        traj_vel_sample_figsize = (4, 4)
+        traj_linewidth = 2
+        traj_leadlag_linewidth = 3
+        reach_sample_linewidth = 3
+        
+        preferred_traj_linewidth = 2
+        distplot_linewidth = 3
+        preferred_traj_figsize = (4.5, 4.5)
+        
+        weights_by_distance_figsize = (6, 4)
+        aucScatter_figSize = (6, 6)
+        FN_figsize = (5, 5)
+        feature_corr_figSize = (4, 4)
+        pearsonr_histsize = (3, 3)
+        distplot_figsize = (3, 2)
+        shuffle_figsize = (12, 3)
+        stripplot_figsize = (6, 3)
+        scatter_figsize = (5, 5)
+        reach_sample_figsize = (7.5, 7.25)
+        
+        boxplot_figsize = (7, 3.5)
+        boxplot_boxwidth = .5
+
+        trajlength_figsize = (4, 4)
+        trajlength_markersize = 12
+        trajlength_linewidth = 2
+        
+        corr_marker_color = 'gray'
+        
+# class plot_params:
+#     # axis_fontsize = 24
+#     # dpi = 300
+#     # axis_linewidth = 2
+#     # tick_length = 2
+#     # tick_width = 1
+#     # map_figSize = (6, 8)
+#     # tick_fontsize = 18
+#     # aucScatter_figSize = (7, 7)
+    
+#     figures_list = ['Fig1', 'Fig2', 'Fig3', 'Fig4', 'Fig5', 'Fig6', 'Fig7', 'FigS1',  'FigS2',  'FigS3',  'FigS4', 'FigS5', 'unknown']
+
+#     if fig_mode == 'paper':
+#         axis_fontsize = 8
+#         dpi = 300
+#         axis_linewidth = 2
+#         tick_length = 1.5
+#         tick_width = 1
+#         tick_fontsize = 8
+        
+#         spksamp_markersize = 4
+#         vel_markersize = 2
+#         traj_length_markersize = 6
+#         scatter_markersize = 8
+        
+#         traj_pos_sample_figsize = (1.75, 1.75)
+#         traj_vel_sample_figsize = (1.5  ,   1.5)
+#         traj_linewidth = 1
+#         traj_leadlag_linewidth = 2
+        
+#         preferred_traj_linewidth = .5
+#         preferred_traj_figsize = (1.75, 1.75)
+        
+#         weights_by_distance_figsize = (2.5, 1.5)
+#         aucScatter_figSize = (1.75, 1.75)
+#         FN_figsize = (3, 3)
+#         feature_corr_figSize = (3, 3)
+#         trajlength_figsize = (1.75, 1.75)
+#         pearsonr_histsize = (1.5, 1.5)
+
+
+#     elif fig_mode == 'pres':
+#         axis_fontsize = 20
+#         dpi = 300
+#         axis_linewidth = 2
+#         tick_length = 2
+#         tick_width = 1
+#         tick_fontsize = 18
+    
+#         map_figSize = (6, 8)
+#         FN_figsize = (5, 5)
+#         weights_by_distance_figsize = (6, 4)
+#         aucScatter_figSize = (6, 6)
+#         feature_corr_figSize = (4, 4)
+
+plt.rcParams['figure.dpi'] = plot_params.dpi
+plt.rcParams['savefig.dpi'] = plot_params.dpi
+plt.rcParams["font.family"] = "Arial"
+# plt.rcParams['font.family'] = 'sans-serif'
+# plt.rcParams['font.sans-serif'] = 'Arial'
+plt.rcParams['axes.spines.right'] = False
+plt.rcParams['axes.spines.top'] = False
+plt.rcParams['axes.labelsize'] = plot_params.axis_fontsize 
+plt.rcParams['axes.linewidth'] = plot_params.axis_linewidth
+plt.rcParams['xtick.labelsize'] = plot_params.tick_fontsize
+plt.rcParams['xtick.major.size'] = plot_params.tick_length
+plt.rcParams['xtick.major.width'] = plot_params.tick_width
+plt.rcParams['ytick.labelsize'] = plot_params.tick_fontsize
+plt.rcParams['ytick.major.size'] = plot_params.tick_length
+plt.rcParams['ytick.major.width'] = plot_params.tick_width
+plt.rcParams['legend.fontsize'] = plot_params.axis_fontsize
+plt.rcParams['legend.loc'] = 'upper left'
+plt.rcParams['legend.borderaxespad'] = 1.1
+plt.rcParams['legend.borderpad'] = 1.1
+
+    
+
+for fig_name in plot_params.figures_list:
+    os.makedirs(os.path.join(plots, fig_name), exist_ok=True)
+    if fig_name == 'unknown':
+        os.makedirs(os.path.join(plots, fig_name, 'network'), exist_ok=True)
+        os.makedirs(os.path.join(plots, fig_name, 'kinematics'), exist_ok=True)
+        os.makedirs(os.path.join(plots, fig_name, 'auc_comparison'), exist_ok=True)
 
 def add_cortical_area_to_units_results_df(units_res, cortical_bounds):
     
@@ -137,6 +368,181 @@ def trajectory_vs_shuffle_sign_test(traj_res, shuf_res, units_res):
     units_res['mwu_p'  ] = mwu_p
     
     return units_res
+
+
+def plot_reach_samples(nReaches = 3, reachset1 = None, reachset2 = None, color1 = 'blue', color2='green'):
+    
+    # linestyles= ['solid', 'solid', 'solid']
+    
+    first_event_key = [key for idx, key in enumerate(kin_module.data_interfaces.keys()) if idx == 0][0]
+    camPeriod = np.mean(np.diff(kin_module.data_interfaces[first_event_key].pose_estimation_series['origin'].timestamps[:]))
+    dlc_scorer = kin_module.data_interfaces[first_event_key].scorer 
+    
+    if 'simple_joints_model' in dlc_scorer:
+        wrist_label = 'hand'
+        shoulder_label = 'shoulder'
+    elif 'marmoset_model' in dlc_scorer and nwb.subject.subject_id == 'TY':
+        wrist_label = 'l-wrist'
+        shoulder_label = 'l-shoulder'
+    elif 'marmoset_model' in dlc_scorer and nwb.subject.subject_id == 'MG':
+        wrist_label = 'r-wrist'
+        shoulder_label = 'r-shoulder'
+    
+    if reachset1 is None:
+        reachset1 = reach_set_df.loc[reach_set_df['FN_reach_set']==1, 'reach_num'].to_list()
+    if reachset2 is None:
+        reachset2 = reach_set_df.loc[reach_set_df['FN_reach_set']==2, 'reach_num'].to_list()
+    
+    fig0 = plt.figure(figsize = plot_params.reach_sample_figsize)
+    ax0 = plt.axes(projection='3d')
+    fig1 = plt.figure(figsize = plot_params.reach_sample_figsize)
+    ax1 = plt.axes(projection='3d')
+    r1_count, r2_count = 0, 0
+    for rIdx, reach in reaches.iterrows():
+        
+        # get event data using container and ndx_pose names from segment_info table following form below:
+        # nwb.processing['goal_directed_kinematics'].data_interfaces['moths_s_1_e_004_position']
+        event_data      = kin_module.data_interfaces[reach.video_event] 
+        
+        wrist_kinematics    = event_data.pose_estimation_series[   wrist_label].data[reach.start_idx:reach.stop_idx+1].T
+        shoulder_kinematics = event_data.pose_estimation_series[shoulder_label].data[reach.start_idx:reach.stop_idx+1].T
+        timestamps          = event_data.pose_estimation_series[   wrist_label].timestamps[reach.start_idx:reach.stop_idx+1]
+            
+        if rIdx in reachset1:
+            if nReaches is not None and r1_count > nReaches:
+                continue
+            # lstyle=linestyles[r1_count]
+            lstyle = 'solid'
+            r1_count += 1
+            ax = ax0
+            color = color1
+        elif rIdx in reachset2:
+            if nReaches is not None and r2_count > nReaches:
+                continue
+            # lstyle=linestyles[r2_count]
+            lstyle = 'solid'
+            r2_count += 1
+            ax = ax1
+            color = color2
+        else:
+            continue
+        
+
+        ax.plot3D(wrist_kinematics[0] , wrist_kinematics[1], wrist_kinematics[2], 
+                  linewidth=plot_params.reach_sample_linewidth, color=color, linestyle=lstyle)
+        ax.plot3D(wrist_kinematics[0,0], wrist_kinematics[1,0], wrist_kinematics[2,0], 
+                  linewidth=plot_params.reach_sample_linewidth, color='black', marker='o', markersize=plot_params.reach_sample_markersize)
+
+            # ax.set_title(title, fontsize = 16, fontweight = 'bold')
+        # ax.set_xlim(min_xyz[0], max_xyz[0])
+        # ax.set_ylim(min_xyz[1], max_xyz[1])
+        # ax.set_zlim(min_xyz[2], max_xyz[2])
+        # ax.set_xticklabels([])
+        # ax.set_yticklabels([])
+        # ax.set_zticklabels([])
+        # ax.set_xlabel('x', fontsize = plot_params.axis_fontsize)
+        # ax.set_ylabel('y', fontsize = plot_params.axis_fontsize)
+        # ax.set_zlabel('z', fontsize = plot_params.axis_fontsize)
+    
+    for ax in [ax0, ax1]:
+        ax.set_xlabel('x (cm)', fontsize = plot_params.axis_fontsize)
+        ax.set_ylabel('y (cm)', fontsize = plot_params.axis_fontsize)
+        ax.set_zlabel('z (cm)', fontsize = plot_params.axis_fontsize)
+        # ax.legend(['lead', 'lag'], loc='upper right', bbox_to_anchor=(1, 1), fontsize = 14, shadow=False)
+        # ax.w_xaxis.line.set_color('black')
+        # ax.w_yaxis.line.set_color('black')
+        # ax.w_zaxis.line.set_color('black')
+        ax.view_init(28, 148)
+        ax.set_xlim(0, params.apparatus_dimensions[0]),
+        ax.set_ylim(0, params.apparatus_dimensions[1])
+        ax.set_zlim(0, params.apparatus_dimensions[2])
+        ax.set_xticks([0, params.apparatus_dimensions[0]]),
+        ax.set_yticks([0, params.apparatus_dimensions[1]])
+        ax.set_zticks([0, params.apparatus_dimensions[2]])
+    plt.show()
+        
+    fig0.savefig(os.path.join(plots, 'Fig1', f'{marmcode}_reach_set1_reaches.png'), bbox_inches='tight', dpi=plot_params.dpi)
+    fig1.savefig(os.path.join(plots, 'Fig1', f'{marmcode}_reach_set2_reaches.png'), bbox_inches='tight', dpi=plot_params.dpi)
+
+def plot_boxplot_of_trajectory_model_auc(units_res, other_marm = False, model_list = None, label_list = None, paperFig = 'unknown'):
+    
+    if other_marm == 'MG':
+        other_pkl_infile = '/project/nicho/projects/dalton/data/MG/MG20230416_1505_mothsAndFree-002_processed_DM_alpha_pt00001_removedUnits_181_440_fixedMUA_745_796_encoding_models_30ms_shift_v3.pkl'
+    elif other_marm == 'TY':
+        other_pkl_infile = '/project/nicho/projects/dalton/data/TY/TY20210211_freeAndMoths-003_resorted_20230612_DM_alpha_pt00001_encoding_models_30ms_shift_v3.pkl' 
+
+    with open(other_pkl_infile, 'rb') as f:
+        other_res_dict = dill.load(f)
+    
+    other_units_res = other_res_dict[params.best_lead_lag_key]['all_models_summary_results'].copy()
+    other_units_res = other_units_res.loc[other_units_res['proportion_sign']>=0.5, :]
+
+    
+    if model_list is None:
+        model_list = [col.split('_auc')[0] for col in units_res.columns if '_auc' in col] 
+        label_list = model_list
+    
+    box_df = pd.DataFrame()
+    for marm, res in zip([marmcode, other_marm], [units_res, other_units_res]):
+        for model, label in zip(model_list, label_list):
+            auc_key = f'{model}_auc'
+            
+            # auc_vals = res.loc[res['proportion_sign'] > 0.5, auc_key]
+            auc_vals = res[auc_key]
+            model_name_list = [label for i in range(auc_vals.shape[0])]
+            marm_list = [marm for i in range(auc_vals.shape[0])]
+            
+            box_df = pd.concat((box_df, pd.DataFrame(data=zip(auc_vals, model_name_list, marm_list),
+                                                     columns=['AUC', 'Model', 'Monkey'])),
+                               axis=0, ignore_index=True)
+    
+    
+    fig, axes = plt.subplots(1, 2, figsize = plot_params.boxplot_figsize, dpi = plot_params.dpi)
+    sns.boxplot(ax=axes[0], data=box_df.loc[box_df['Monkey'] == 'TY', :], x='Model', y='AUC', color=(34/255, 131/255, 67/255), width=plot_params.boxplot_boxwidth)
+    sns.boxplot(ax=axes[1], data=box_df.loc[box_df['Monkey'] == 'MG', :], x='Model', y='AUC', color=(34/255, 131/255, 67/255), width=plot_params.boxplot_boxwidth)
+    
+    # fig = sns.catplot(data=box_df, x='Model', y='AUC', col='Monkey', kind='box', color=(34/255, 131/255, 67/255))
+    
+    # axes[1].set_yticklabels(axes[1].get_yticklabels(), fontsize=plot_params.tick_fontsize)
+    for ax in axes:
+        ax.set_xlabel('', fontsize = plot_params.axis_fontsize)
+        ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
+        sns.despine(ax=ax)
+        # for axis in ['bottom', 'left']: 
+        #     ax.spines[axis].set_linewidth(plot_params.axis_linewidth)
+        #     ax.spines[axis].set_color('black')
+        # ax.tick_params(width=plot_params.tick_width, length = plot_params.tick_length*2, labelsize = plot_params.tick_fontsize)
+        ax.set_ylim(0.45, 0.75)
+
+    axes[0].set_ylabel('AUC', fontsize = plot_params.axis_fontsize)    
+    # axes[1].set_yticklabels(axes[1].get_yticklabels(), fontsize=plot_params.tick_fontsize)
+
+    axes[1].set_ylabel('', fontsize = plot_params.axis_fontsize)    
+    axes[1].set_yticklabels('', fontsize=plot_params.tick_fontsize)
+    
+    fig.savefig(os.path.join(plots, paperFig, f'trajectory_model_auc_results.png'), bbox_inches='tight', dpi=plot_params.dpi)
+
+    #### Plot scatter of tortuosity and mean speed
+    sample_info_marm1 = results_dict[params.best_lead_lag_key]['sampled_data']['sample_info'].copy()
+    sample_info_marm2 = other_res_dict[params.best_lead_lag_key]['sampled_data']['sample_info'].copy()
+    
+    sample_info_marm1['Monkey'] = marmcode
+    sample_info_marm2['Monkey'] = other_marm
+    
+    sample_info_combo_df = pd.concat((sample_info_marm1, sample_info_marm2), axis=0, ignore_index=True)
+    fig, ax = plt.subplots(figsize=(5, 5), dpi=plot_params.dpi)
+    sns.scatterplot(ax=ax, data=sample_info_combo_df, x='mean_tortuosity', y='mean_speed', hue='Monkey', s = 2)
+    ax.set_xlim(1, 15)
+    ax.set_ylim(0, 70)
+
+    jfig = sns.jointplot(data=sample_info_combo_df, x='mean_tortuosity', y='mean_speed', hue='Monkey', s = 2)
+    jfig.fig.axes[0].set_xlim(1, 15)
+    jfig.fig.axes[0].set_ylim(0, 70)
+    jfig.fig.set_dpi(300)
+    jfig.fig.set_figheight(5)
+    jfig.fig.set_figwidth(5)
+    jfig.savefig(os.path.join(plots, paperFig, f'mean_speed_tortuosity_joint_plot.png'), bbox_inches='tight', dpi=plot_params.dpi)
+
 
 def compute_AUC_distribution_statistics(model_keys, unit_idxs, lead_lag_key, plot=False):
         
@@ -215,7 +621,7 @@ def determine_trajectory_significance(lead_lag_keys, plot = False):
         
         
         #['traj', 'traj_with_shuffled_spike_samples']
-        shuffle_model = [key for key in results_dict[lead_lag_key]['model_results'].keys() if 'shuffle' in key][0]
+        shuffle_model = [key for key in results_dict[lead_lag_key]['model_results'].keys() if params.shuffle_to_test in key][0]
         stats_df = compute_AUC_distribution_statistics(model_keys=[params.primary_traj_model, shuffle_model], 
                                                        unit_idxs=None, 
                                                        lead_lag_key=lead_lag_key,
@@ -235,7 +641,7 @@ def determine_trajectory_significance(lead_lag_keys, plot = False):
         results_dict[lead_lag_key]['all_models_summary_results'] = all_units_res
 
             
-def organize_results_by_model_for_all_lags(fig_mode, per=None):
+def organize_results_by_model_for_all_lags(fig_mode, per=None, prop=None, paperFig = 'unknown'):
     
     tmp_lead_lag_key = list(results_dict.keys())[0]
     model_keys = [key for key in results_dict[tmp_lead_lag_key]['all_models_summary_results'].columns if 'auc' in key.lower() and 'shuffle' not in key]
@@ -259,10 +665,13 @@ def organize_results_by_model_for_all_lags(fig_mode, per=None):
             fig_df = pd.DataFrame()
             for idx, col in enumerate(tmp_results.columns):
                 tmp_data = tmp_results[col]
+                tmp_prop = sign_prop_df[col]
                 if fig_mode == 'percentile':
                     tmp_data = tmp_data[tmp_data > np.percentile(tmp_data, per)]
                     if idx == 0:
                         plt_title += f', Top {per}%'
+                elif fig_mode == 'tuning_prop':
+                    tmp_data = tmp_data[tmp_prop > prop]
                 fig_df = pd.concat((fig_df, 
                                     pd.DataFrame(data=zip(tmp_data, 
                                                           np.repeat(col, tmp_data.shape[0]),
@@ -278,17 +687,44 @@ def organize_results_by_model_for_all_lags(fig_mode, per=None):
             fig_df['Trajectory Center (ms)'] = [(-int(lead)+int(lag)) / 2 for lead, lag in zip(leads, lags)]        
             fig_df['Trajectory Length (ms)'] = [( int(lead)+int(lag))     for lead, lag in zip(leads, lags)]
             
-            fig, ax = plt.subplots(figsize=(6.5, 5), dpi = plot_params.dpi)
+            cmap_orig = plt.get_cmap("YlGn")
+            colors_tophalf = cmap_orig(np.arange(cmap_orig.N, cmap_orig.N/2, -1, dtype=int))
+            # colors_tophalf = cmap_orig(np.arange(0, cmap_orig.N*3/4, dtype=int))
+            cmap = ListedColormap(colors_tophalf)
+            plt.cm.register_cmap("ylgn_dark", cmap=cmap)
+            
+            fig, ax = plt.subplots(figsize=plot_params.trajlength_figsize, dpi = plot_params.dpi)
             sns.lineplot(ax=ax, data=fig_df, x = 'Trajectory Center (ms)', y='AUC', hue = 'Trajectory Length (ms)', 
-                         linestyle='-', err_style='bars', errorbar=("se", 1), marker='o', markersize=10, palette='tab10')
-            ax.set_title(plt_title)
+                         legend=False, linestyle='-', err_style='bars', errorbar=("se", 1), linewidth=plot_params.trajlength_linewidth, 
+                         marker='o', markersize=plot_params.trajlength_markersize, palette='ylgn_dark')
+            # ax.set_title(plt_title)
+            ax.set_title('')
+
+            # ax.legend(bbox_to_anchor=(1.1, 0.5), loc='upper left', title='Trajectory Length (ms)', fontsize=plot_params.axis_fontsize, title_fontsize=plot_params.axis_fontsize)
+            if prop is None and per is None:
+                ax.set_ylim(0.54, 0.585)
+                ax.set_yticks(np.linspace(0.54, 0.585, 4))
+                ax.set_yticklabels(ax.get_yticks(), fontsize=plot_params.tick_fontsize)
+                ax.set_xticks([-250, -100, 0, 100, 250])
+                ax.set_xticklabels(ax.get_xticks(), fontsize=plot_params.tick_fontsize)
+            sns.despine(ax=ax)
+            # ax.spines['bottom'].set_linewidth(plot_params.axis_linewidth)
+            # ax.spines['left'  ].set_linewidth(plot_params.axis_linewidth)
+            ax.set_xlabel('Trajectory Center (ms)', fontsize=plot_params.axis_fontsize)
+            ax.set_ylabel('Full Kinematics AUC', fontsize=plot_params.axis_fontsize)
+            
             plt.show()
             
             if fig_mode == 'all':
-                fig.savefig(os.path.join(plots, f'{name}_auc_over_leadlags_unfiltered.png'), bbox_inches='tight', dpi=plot_params.dpi)
+                fig.savefig(os.path.join(plots, paperFig, f'{name}_auc_leadlagsRange_unfiltered.png'), bbox_inches='tight', dpi=plot_params.dpi)
             else:
-                fig.savefig(os.path.join(plots, f'{name}_auc_over_leadlags_filtered_by_%s.png' % fig_mode), bbox_inches='tight', dpi=plot_params.dpi)
-            
+                filtThresh = per if per is not None else int(prop*100)
+                figname = f'{name}_auc_leadlagsRange_filtered_by_{fig_mode}_{filtThresh}.png'
+                if prop is not None:
+                    fig.savefig(os.path.join(plots, 'Fig3', figname), bbox_inches='tight', dpi=plot_params.dpi)
+                else:
+                    fig.savefig(os.path.join(plots, paperFig, figname), bbox_inches='tight', dpi=plot_params.dpi)
+                
             rel = sns.relplot(data=fig_df, x = 'Trajectory Center (ms)', y='AUC', hue = 'Trajectory Length (ms)', col='cortical_area', 
                               linestyle='-.', kind='line', err_style='bars', errorbar=("se", 1), marker='o', markersize=10, palette='tab10')
             rel.fig.subplots_adjust(top=0.875) # adjust the Figure in rp
@@ -296,9 +732,9 @@ def organize_results_by_model_for_all_lags(fig_mode, per=None):
             plt.show()
             
             if fig_mode == 'all':
-                rel.savefig(os.path.join(plots, f'{name}_auc_over_leadlags_unfiltered_sepByArea.png'), bbox_inches='tight', dpi=plot_params.dpi)
+                rel.savefig(os.path.join(plots, paperFig, f'{name}_auc_leadlagsRange_unfiltered_sepByArea.png'), bbox_inches='tight', dpi=plot_params.dpi)
             else:
-                rel.savefig(os.path.join(plots, f'{name}_auc_over_leadlags_filtered_by_%s_sepByArea.png' % fig_mode), bbox_inches='tight', dpi=plot_params.dpi)
+                rel.savefig(os.path.join(plots, paperFig, f'{figname.split(".png")[0]}_sepByArea.png'), bbox_inches='tight', dpi=plot_params.dpi)
             
             
             # rel = sns.relplot(data=fig_df, x = 'Trajectory Center (ms)', y='AUC', hue = 'Trajectory Length (ms)', col='Trajectory Length (ms)', 
@@ -716,12 +1152,12 @@ def plot_optimal_lag_on_channel_map(units_res, jitter_radius = .15, hueKey = 'tr
     ax.hlines(np.arange(-0.5* distance_mult, 10.5* distance_mult, 1* distance_mult), -0.5* distance_mult, 9.5* distance_mult, colors='black')
     ax.set_xlim(-0.5* distance_mult, 9.5* distance_mult)
     ax.set_ylim(-0.5* distance_mult, 9.5* distance_mult)
-    for axis in ['bottom','left']:
-        ax.spines[axis].set_linewidth(1)
-        ax.spines[axis].set_color('black')
-    for axis in ['top','right']:
-        ax.spines[axis].set_linewidth(0)
-    ax.tick_params(width=0, length = 0, labelsize = 0)
+    # for axis in ['bottom','left']:
+    #     ax.spines[axis].set_linewidth(1)
+    #     ax.spines[axis].set_color('black')
+    # for axis in ['top','right']:
+    #     ax.spines[axis].set_linewidth(0)
+    # ax.tick_params(width=0, length = 0, labelsize = 0)
     ax.set_ylabel('')
     ax.set_xlabel('')
     # ax.set_xlabel('Anterior'  , fontsize = plot_params.axis_fontsize, fontweight = 'bold')
@@ -837,7 +1273,7 @@ def plot_sweep_over_lead_lag(model_results_across_lags, filter_key):
         ax.set_yticks([0.54, 0.57])
     elif filter_key == 'tuned':
         ax.set_yticks([0.58, 0.61])
-    ax.tick_params(width=2, length = 4, labelsize = plot_params.tick_fontsize)
+    # ax.tick_params(width=2, length = 4, labelsize = plot_params.tick_fontsize)
     # ax.set_xticks(traj_mean_performance['reorder'])
     # for tick in ax.get_xticklabels():
     #     tick.set_fontsize(plot_params.tick_fontsize)
@@ -847,8 +1283,8 @@ def plot_sweep_over_lead_lag(model_results_across_lags, filter_key):
     ax.set_xticklabels(xticklabels, rotation=90)
 
     sns.despine(ax=ax)
-    ax.spines['bottom'].set_linewidth(plot_params.axis_linewidth)
-    ax.spines['left'  ].set_linewidth(plot_params.axis_linewidth)
+    # ax.spines['bottom'].set_linewidth(plot_params.axis_linewidth)
+    # ax.spines['left'  ].set_linewidth(plot_params.axis_linewidth)
     
     plt.show()
     
@@ -872,24 +1308,36 @@ def summarize_model_results(units, lead_lag_keys):
             pass
         
         for model_key in results_dict[lead_lag_key]['model_results'].keys():
-            if model_key == 'shortTraj_high_tortuosity':
-                stop = []
-            col_name = '%s_auc' % model_key
-            if col_name not in all_units_res.columns: 
-                all_units_res[col_name] = results_dict[lead_lag_key]['model_results'][model_key]['AUC'].mean(axis=-1)
+            if model_key == params.primary_traj_model:
+                col_names   = [f'{model_key}_auc', f'{model_key}_train_auc']
+                metric_keys = [             'AUC',               'trainAUC'] 
             else:
-                print('This model (%s, %s) has already been summarized in the all_models_summary_results dataframe' % (lead_lag_key, model_key))
+                col_names   = [f'{model_key}_auc']
+                metric_keys = [             'AUC'] 
+                
+            for col_name, metric_key in zip(col_names, metric_keys):
+                if col_name not in all_units_res.columns and metric_key in results_dict[lead_lag_key]['model_results'][model_key].keys(): 
+                    all_units_res[col_name] = results_dict[lead_lag_key]['model_results'][model_key][metric_key].mean(axis=-1)    
+                else:
+                    print('This model (%s, %s) has already been summarized in the all_models_summary_results dataframe' % (lead_lag_key, model_key))
         
         all_units_res = add_cortical_area_to_units_results_df(all_units_res, cortical_bounds=params.cortical_boundaries)
 
         results_dict[lead_lag_key]['all_models_summary_results'] = all_units_res
         
-def plot_model_auc_comparison(units_res, x_key, y_key, minauc = 0.5, targets=None):
+def plot_model_auc_comparison(units_res, x_key, y_key, minauc = 0.5, maxauc=1.0, targets=None, palette=None, paperFig = 'unknown'):
     
     if x_key[-4:] != '_auc':
         x_key = x_key + '_auc'
     if y_key[-4:] != '_auc':
         y_key = y_key + '_auc'
+    
+    xlabel = [f'{lab} AUC' for lab, key in zip(['Trajectory', 'Full Kinematics', 'Velocity', 'Short Kinematics', 'Kinematics and reachFN', 'Kinematics and Spontaneous FN Generalization'], 
+                                               ['traj', 'traj_avgPos', 'shortTraj', 'shortTraj_avgPos', 'traj_avgPos_reach_FN', 'traj_avgPos_spont_train_reach_test_FN']) if f'{key}_auc' == x_key][0]
+    
+    ylabel = [f'{lab} AUC' for lab, key in zip(['Trajectory', 'Full Kinematics', 'Velocity', 'Short Kinematics', 'Kinematics and reachFN', 'Kinematics and Spontaneous FN Generalization'], 
+                                               ['traj', 'traj_avgPos', 'shortTraj', 'shortTraj_avgPos', 'traj_avgPos_reach_FN', 'traj_avgPos_spont_train_reach_test_FN']) if f'{key}_auc' == y_key][0]
+    
     
     units_res_plots = units_res.copy()
         
@@ -913,28 +1361,30 @@ def plot_model_auc_comparison(units_res, x_key, y_key, minauc = 0.5, targets=Non
     # sns.scatterplot(ax = ax, data = units_res_plots, x = x_key, y = y_key, 
     #                 style = "quality", s = 60, legend=False)
     sns.scatterplot(ax = ax, data = units_res_plots, x = x_key, y = y_key, 
-                    hue = "snr", s = 60, legend=False)    
-    ax.plot(np.arange(minauc, 1.0, 0.05), np.arange(minauc, 1.0, 0.05), '--k')
+                    hue = "snr", s = plot_params.scatter_markersize, legend=False, palette=palette)    
+    ax.plot(np.arange(minauc, maxauc, 0.05), np.arange(minauc, maxauc, 0.05), '--k', linewidth = plot_params.traj_linewidth)
     # ax.scatter(units_res_plots[x_key].to_numpy()[44] , units_res_plots[y_key].to_numpy()[44] , s = 60, c ='red', marker='x')
     # ax.scatter(units_res_plots[x_key].to_numpy()[107], units_res_plots[y_key].to_numpy()[107], s = 60,  c ='red', marker='o')
-    ax.set_xlim(minauc, 1)
-    ax.set_ylim(minauc, 1)
-    for axis in ['bottom','left']:
-        ax.spines[axis].set_linewidth(2)
-        ax.spines[axis].set_color('black')
-    for axis in ['top','right']:
-        ax.spines[axis].set_linewidth(0)
-    ax.tick_params(width=2, length = 4, labelsize = plot_params.tick_fontsize)
-    ax.set_xlabel('ROC area (%s)' % x_key[:-4], fontsize = plot_params.axis_fontsize)
-    ax.set_ylabel('ROC area (%s)' % y_key[:-4], fontsize = plot_params.axis_fontsize)
+    ax.set_xlim(minauc, maxauc)
+    ax.set_ylim(minauc, maxauc)
+    # for axis in ['bottom','left']:
+    #     ax.spines[axis].set_linewidth(plot_params.axis_linewidth)
+    #     ax.spines[axis].set_color('black')
+    # for axis in ['top','right']:
+    #     ax.spines[axis].set_linewidth(0)
+    # ax.tick_params(width=plot_params.tick_width, length = plot_params.tick_length*2, labelsize = plot_params.tick_fontsize)
+    ax.set_xlabel(xlabel, fontsize = plot_params.axis_fontsize)
+    ax.set_ylabel(ylabel, fontsize = plot_params.axis_fontsize)
     # ax.set_xlabel('')
     # ax.set_ylabel('')
-    ax.set_title(plot_title)
+    # ax.set_title(plot_title)
+    ax.set_title('')
+
     ax.grid(False)
     # ax.legend(bbox_to_anchor=(1.5, 1.5), loc='upper left', borderaxespad=0)
     plt.show()
     
-    fig.savefig(os.path.join(plots, plot_name), bbox_inches='tight', dpi=plot_params.dpi)
+    # fig.savefig(os.path.join(plots, paperFig, plot_name), bbox_inches='tight', dpi=plot_params.dpi)
 
 
 def isolate_target_units_for_plots(units_res, targets):
@@ -955,79 +1405,7 @@ def isolate_target_units_for_plots(units_res, targets):
             
     return units_res
 
-# def plot_model_auc_comparison(units_res, x_key, y_key, minauc = 0.5, prop_thresh=None, targets=None):
-    
-#     if prop_thresh is not None:
-#         units_res = units_res.loc[units_res.proportion_sign >= prop_thresh, :]
-    
-#     fig, ax = plt.subplots(figsize = plot_params.aucScatter_figSize)
-#     # sns.scatterplot(ax = ax, data = units_res, x = x_key, y = y_key, 
-#     #                 hue = "fr", style = "group")
-#     sns.scatterplot(ax = ax, data = units_res, x = x_key, y = y_key, 
-#                     style = "quality", s = 60, legend=False)
-#     ax.plot(np.arange(minauc, 1.0, 0.05), np.arange(minauc, 1.0, 0.05), '--k')
-#     # ax.scatter(units_res[x_key].to_numpy()[44] , units_res[y_key].to_numpy()[44] , s = 60, c ='red', marker='x')
-#     # ax.scatter(units_res[x_key].to_numpy()[107], units_res[y_key].to_numpy()[107], s = 60,  c ='red', marker='o')
-#     ax.set_xlim(minauc, 1)
-#     ax.set_ylim(minauc, 1)
-#     for axis in ['bottom','left']:
-#         ax.spines[axis].set_linewidth(2)
-#         ax.spines[axis].set_color('black')
-#     for axis in ['top','right']:
-#         ax.spines[axis].set_linewidth(0)
-#     ax.tick_params(width=2, length = 4, labelsize = plot_params.tick_fontsize)
-#     ax.set_xlabel('ROC area (%s)' % x_key[:-4], fontsize = plot_params.axis_fontsize)
-#     ax.set_ylabel('ROC area (%s)' % y_key[:-4], fontsize = plot_params.axis_fontsize)
-#     # ax.set_xlabel('')
-#     # ax.set_ylabel('')
-#     ax.grid(False)
-#     # ax.legend(bbox_to_anchor=(1.5, 1.5), loc='upper left', borderaxespad=0)
-#     plt.show()
-    
-#     # if targets is None:
-#     #     fig.savefig(os.path.join(path.plots, 'area_under_curve_%s_%s.png' % (x_key, y_key)), bbox_inches='tight', dpi=plot_params.dpi)
-#     # else:
-#     #     fig.savefig(os.path.join(path.plots, 'area_under_curve_%s_%s_%s_targetUnits.png' % (x_key, y_key, targets)), bbox_inches='tight', dpi=plot_params.dpi)
-
-# def compute_and_analyze_pathlets_on_PCA_models(lead_lag_key):
-#     coefs = results_dict[lead_lag_key]['model_results']['coefs']
-#     comps = results_dict[lead_lag_key]['model_features']['traj_PCA_components']
-#     beta = np.mean(coefs, axis = -1)[1:np.shape(comps)[-1]+1, :]
-#     velTraj = comps @ beta
-#     velTraj = np.swapaxes(velTraj.reshape((params.nDims, int(np.shape(velTraj)[0] / params.nDims), np.shape(velTraj)[-1])), 0, 1)
-
-#     posTraj = cumtrapz(velTraj, dx = (params.lag_to_analyze[0] + params.lead_to_analyze[0]) / np.shape(velTraj)[0], axis = 0, initial = 0)
-#     dist = simps(np.linalg.norm(velTraj, axis = 1), dx = (params.lag_to_analyze[0] + params.lead_to_analyze[0]) / np.shape(velTraj)[0], axis = 0)
-    
-#     pathDivergence = np.empty(np.shape(coefs[0, ...].transpose()))
-#     sample_pathlets = []
-#     for samp in range(np.shape(coefs)[-1]):
-#         beta_samp = coefs[1:np.shape(comps)[-1] +1, :, samp]
-#         velTraj_samp = comps @ beta_samp
-#         velTraj_samp = np.swapaxes(velTraj_samp.reshape((params.nDims, int(np.shape(velTraj_samp)[0] / params.nDims), np.shape(velTraj_samp)[-1])), 0, 1)
-#         posTraj_samp = cumtrapz(velTraj_samp, dx = (params.lag[0] + params.lead[0]) / np.shape(velTraj_samp)[0], axis = 0, initial = 0)
-#         sample_pathlets.append(posTraj_samp)
-#         pathDivergence[samp, :] = np.sum(np.linalg.norm(posTraj - posTraj_samp, axis = 1), axis = 0)
-        
-#         divShuffle = np.empty((np.shape(pathDivergence)[0], np.shape(pathDivergence)[1], 100))
-#         for shuffle in range(100):
-#             idx = np.random.choice(np.arange(np.shape(pathDivergence)[1]), size = np.shape(pathDivergence)[1], replace = 0)
-#             while np.sum(idx == np.arange(np.shape(pathDivergence)[1])) > 0:
-#                 idx = np.random.choice(np.arange(np.shape(pathDivergence)[1]), size = np.shape(pathDivergence)[1], replace = 0)
-    
-#             divShuffle[samp, :, shuffle] = np.sum(np.linalg.norm(posTraj[..., idx] - posTraj_samp, axis = 1), axis = 0)
-    
-#     # axlims_best  = plot_pathlet(posTraj, sample_pathlets, unit_info, unit_selector = 'max', numToPlot = 1, unitsToPlot = None)
-#     # axlims_worst = plot_pathlet(posTraj, sample_pathlets, unit_info, unit_selector = 'min', numToPlot = 1, unitsToPlot = None, axlims = axlims_best)
-#     axlims_good = plot_pathlet(posTraj, sample_pathlets, unit_info, unit_selector = 'min', numToPlot = 5, unitsToPlot = [107], axlims = None)
-#     axlims_bad  = plot_pathlet(posTraj, sample_pathlets, unit_info, unit_selector = 'min', numToPlot = 5, unitsToPlot = [44] , axlims = axlims_good)
-        
-#     pathDivergence_mean = np.mean(pathDivergence, axis = 0)
-#     shuffledPathDivergence_mean = np.mean(np.mean(divShuffle, axis = -1), axis = 0)
-    
-#     return velTraj, posTraj
-
-def compute_and_analyze_pathlets(lead_lag_key, model, numplots):
+def compute_and_analyze_pathlets(lead_lag_key, model, numplots, unitsToPlot=None, axlims=None):
     
     lead = float(re.findall(re.compile('lead_[0-9]{1,3}'), lead_lag_key)[0].split('_')[-1]) * 1e-3
     lag  = float(re.findall(re.compile('lag_[0-9]{1,3}' ), lead_lag_key)[0].split('_')[-1]) * 1e-3
@@ -1091,8 +1469,8 @@ def compute_and_analyze_pathlets(lead_lag_key, model, numplots):
     
     # axlims_best  = plot_pathlet(posTraj, sample_pathlets, unit_info, unit_selector = 'max', numToPlot = 1, unitsToPlot = None)
     # axlims_worst = plot_pathlet(posTraj, sample_pathlets, unit_info, unit_selector = 'min', numToPlot = 1, unitsToPlot = None, axlims = axlims_best)
-    axlims_good = plot_pathlet(posTraj_mean, posTraj_samples, lead_lag_key, model, avgPos_mean = avgPos_mean, unit_selector = 'max', numToPlot = numplots, unitsToPlot = None, axlims = None)
-    _           = plot_pathlet(posTraj_mean, posTraj_samples, lead_lag_key, model, unit_selector = 'min', numToPlot = numplots, unitsToPlot = None, axlims = axlims_good)
+    axlims_good = plot_pathlet(posTraj_mean, posTraj_samples, lead_lag_key, model, avgPos_mean = avgPos_mean, unit_selector = 'max', numToPlot = numplots, unitsToPlot = unitsToPlot, axlims = axlims)
+    _           = plot_pathlet(posTraj_mean, posTraj_samples, lead_lag_key, model, unit_selector = 'min', numToPlot = numplots, unitsToPlot = unitsToPlot, axlims = axlims_good)
     # axlims_good = plot_pathlet(velTraj_mean, velTraj_samples, lead_lag_key, model, unit_selector = 'max', numToPlot = 20, unitsToPlot = None, axlims = None)
     # _           = plot_pathlet(velTraj_mean, velTraj_samples, lead_lag_key, model, unit_selector = 'min', numToPlot =  5, unitsToPlot = None, axlims = axlims_good)
          
@@ -1103,7 +1481,7 @@ def compute_and_analyze_pathlets(lead_lag_key, model, numplots):
     if 'velTraj_mean' not in locals():
         velTraj_mean = []
 
-    return posTraj_mean, velTraj_mean, posTraj_samples, velTraj_samples  
+    return posTraj_mean, velTraj_mean, posTraj_samples, velTraj_samples, axlims_good  
     
 def plot_pathlet(posTraj_mean, posTraj_samples, lead_lag_key, model, avgPos_mean = None, unit_selector = 'max', numToPlot = 5, unitsToPlot = None, axlims = None):
     
@@ -1114,6 +1492,14 @@ def plot_pathlet(posTraj_mean, posTraj_samples, lead_lag_key, model, avgPos_mean
     lag  = float(re.findall(re.compile('lag_[0-9]{1,3}' ), lead_lag_key)[0].split('_')[-1]) * 1e-3
     
     if unitsToPlot is None:
+        if unit_selector == 'max':
+            units = np.argpartition(traj_auc, -1*numToPlot)[-1*numToPlot:]
+            units = units[np.argsort(traj_auc[units])]
+            units = units[::-1]
+        elif unit_selector == 'min':
+            units = np.argpartition(traj_auc, numToPlot)[:numToPlot]
+            units = units[np.argsort(traj_auc[units])]
+    elif unitsToPlot is not None and numToPlot is not None:
         if unit_selector == 'max':
             units = np.argpartition(traj_auc, -1*numToPlot)[-1*numToPlot:]
             units = units[np.argsort(traj_auc[units])]
@@ -1137,38 +1523,71 @@ def plot_pathlet(posTraj_mean, posTraj_samples, lead_lag_key, model, avgPos_mean
         min_xyz = axlims[0]
         max_xyz = axlims[1]
     
-    for unit in units:
-        # title = '(%s) Unit %d' %(unit_selector, unit) 
+    fig = plt.figure(figsize = plot_params.preferred_traj_figsize)
+    ax = plt.axes(projection='3d')
+    figname = 'units_'
+    for idx, unit in enumerate(units):
         
-        leadSamp = round(lead / (lead + lag) * posTraj_mean.shape[0])
-        fig = plt.figure(figsize = (4.95, 4.5))
-        ax = plt.axes(projection='3d')
-        for sampPath in posTraj_samples:
-            ax.plot3D(sampPath[:leadSamp + 1, 0, unit], sampPath[:leadSamp + 1, 1, unit], sampPath[:leadSamp + 1, 2, unit], 'blue')
-            ax.plot3D(sampPath[leadSamp:    , 0, unit], sampPath[leadSamp:    , 1, unit], sampPath[leadSamp:    , 2, unit], 'red')
-        ax.plot3D(posTraj_mean[:leadSamp + 1, 0, unit], posTraj_mean[:leadSamp + 1, 1, unit], posTraj_mean[:leadSamp + 1, 2, unit], 'black', linewidth=3)
-        ax.plot3D(posTraj_mean[leadSamp:, 0, unit], posTraj_mean[leadSamp:, 1, unit], posTraj_mean[leadSamp:, 2, unit], 'black', linewidth=3)
+        if unitsToPlot is not None and idx in unitsToPlot:
+        
+            # title = '(%s) Unit %d' %(unit_selector, unit) 
+            
+            figname += f'{unit}_'
+            leadSamp = round(lead / (lead + lag) * posTraj_mean.shape[0])
+            for sampPath in posTraj_samples:
+                ax.plot3D(sampPath[:leadSamp + 1, 0, unit], sampPath[:leadSamp + 1, 1, unit], sampPath[:leadSamp + 1, 2, unit], 'blue', linewidth=plot_params.preferred_traj_linewidth)
+                ax.plot3D(sampPath[leadSamp:    , 0, unit], sampPath[leadSamp:    , 1, unit], sampPath[leadSamp:    , 2, unit], 'red', linewidth=plot_params.preferred_traj_linewidth)
+            ax.plot3D(posTraj_mean[:leadSamp + 1, 0, unit], posTraj_mean[:leadSamp + 1, 1, unit], posTraj_mean[:leadSamp + 1, 2, unit], 'black', linewidth=plot_params.preferred_traj_linewidth*2)
+            ax.plot3D(posTraj_mean[leadSamp:, 0, unit], posTraj_mean[leadSamp:, 1, unit], posTraj_mean[leadSamp:, 2, unit], 'black', linewidth=plot_params.preferred_traj_linewidth*2)
+        
+            if fig_mode == 'pres':
+                ax.set_xlim(min_xyz[0], max_xyz[0])
+                ax.set_ylim(min_xyz[1], max_xyz[1])
+                ax.set_zlim(min_xyz[2], max_xyz[2])
+                ax.set_xticklabels([])
+                ax.set_yticklabels([])
+                ax.set_zticklabels([])
+                ax.set_xlabel('', fontsize = plot_params.axis_fontsize)
+                ax.set_ylabel('', fontsize = plot_params.axis_fontsize)
+                ax.set_zlabel('', fontsize = plot_params.axis_fontsize)
+                
+                ax.view_init(28, 148)
+                plt.show()                
+                fig.savefig(os.path.join(plots, 'Fig2', f'{figname}pathlets.png' % unit), bbox_inches='tight', dpi=plot_params.dpi)
+                
+                figname = 'units_'
+                fig = plt.figure(figsize = plot_params.preferred_traj_figsize)
+                ax = plt.axes(projection='3d')
+    
+    if fig_mode == 'pres':
+        return (min_xyz, max_xyz)    
+                
+        
         # ax.set_title(title, fontsize = 16, fontweight = 'bold')
-        ax.set_xlim(min_xyz[0], max_xyz[0])
-        ax.set_ylim(min_xyz[1], max_xyz[1])
-        ax.set_zlim(min_xyz[2], max_xyz[2])
-        # ax.set_xticklabels([])
-        # ax.set_yticklabels([])
-        # ax.set_zticklabels([])
-        # ax.set_xlabel('x', fontsize = plot_params.axis_fontsize)
-        # ax.set_ylabel('y', fontsize = plot_params.axis_fontsize)
-        # ax.set_zlabel('z', fontsize = plot_params.axis_fontsize)
-        ax.set_xlabel('', fontsize = plot_params.axis_fontsize)
-        ax.set_ylabel('', fontsize = plot_params.axis_fontsize)
-        ax.set_zlabel('', fontsize = plot_params.axis_fontsize)
-        # ax.legend(['lead', 'lag'], loc='upper right', bbox_to_anchor=(1, 1), fontsize = 14, shadow=False)
-        ax.w_xaxis.line.set_color('black')
-        ax.w_yaxis.line.set_color('black')
-        ax.w_zaxis.line.set_color('black')
-        ax.view_init(28, 148)
-        plt.show()
-        
-        fig.savefig(os.path.join(plots, 'unit_%d_pathlet.png' % unit), bbox_inches='tight', dpi=plot_params.dpi)
+    ax.set_xlim(min_xyz[0], max_xyz[0])
+    ax.set_ylim(min_xyz[1], max_xyz[1])
+    ax.set_zlim(min_xyz[2], max_xyz[2])
+    ax.set_xticklabels([])
+    ax.set_yticklabels([])
+    ax.set_zticklabels([])
+    # ax.set_xlabel('x', fontsize = plot_params.axis_fontsize)
+    # ax.set_ylabel('y', fontsize = plot_params.axis_fontsize)
+    # ax.set_zlabel('z', fontsize = plot_params.axis_fontsize)
+    ax.set_xlabel('', fontsize = plot_params.axis_fontsize)
+    ax.set_ylabel('', fontsize = plot_params.axis_fontsize)
+    ax.set_zlabel('', fontsize = plot_params.axis_fontsize)
+    # ax.legend(['lead', 'lag'], loc='upper right', bbox_to_anchor=(1, 1), fontsize = 14, shadow=False)
+    # ax.w_xaxis.line.set_color('black')
+    # ax.w_yaxis.line.set_color('black')
+    # ax.w_zaxis.line.set_color('black')
+    # ax.w_xaxis.line.set_linewidth(plot_params.axis_linewidth)
+    # ax.w_yaxis.line.set_linewidth(plot_params.axis_linewidth)
+    # ax.w_zaxis.line.set_linewidth(plot_params.axis_linewidth)
+
+    ax.view_init(28, 148)
+    plt.show()
+    
+    fig.savefig(os.path.join(plots, 'Fig2', f'{figname}pathlets.png' % unit), bbox_inches='tight', dpi=plot_params.dpi)
 
     
     if unit_selector == 'max':
@@ -1217,14 +1636,14 @@ def plot_pathlet(posTraj_mean, posTraj_samples, lead_lag_key, model, avgPos_mean
         # ax2.set_ylim(-0.3, 0.2)
         # ax2.set_zlim(-0.25, 0.25)
         
-        ax1.w_xaxis.line.set_color('black')
-        ax1.w_yaxis.line.set_color('black')
-        ax1.w_zaxis.line.set_color('black')
+        # ax1.w_xaxis.line.set_color('black')
+        # ax1.w_yaxis.line.set_color('black')
+        # ax1.w_zaxis.line.set_color('black')
         ax1.view_init(28, 148)
         
-        ax2.w_xaxis.line.set_color('black')
-        ax2.w_yaxis.line.set_color('black')
-        ax2.w_zaxis.line.set_color('black')
+        # ax2.w_xaxis.line.set_color('black')
+        # ax2.w_yaxis.line.set_color('black')
+        # ax2.w_zaxis.line.set_color('black')
         ax2.view_init(28, 148)
         
         plt.show() 
@@ -1238,7 +1657,9 @@ def plot_pathlet(posTraj_mean, posTraj_samples, lead_lag_key, model, avgPos_mean
     
     return (min_xyz, max_xyz)
 
-def compute_and_analyze_trajectory_correlations(units_res, posTraj_mean, velTraj_mean, electrode_distances, lead_lag_key, FN=None, mode = 'concat', nplots=5):
+def compute_and_analyze_trajectory_correlations(units_res, posTraj_mean, velTraj_mean, 
+                                                electrode_distances, lead_lag_key, 
+                                                FN=None, mode = 'concat', nplots=5):
     
     lead = float(re.findall(re.compile('lead_[0-9]{1,3}'), lead_lag_key)[0].split('_')[-1]) * 1e-3
     lag  = float(re.findall(re.compile('lag_[0-9]{1,3}' ), lead_lag_key)[0].split('_')[-1]) * 1e-3
@@ -1315,7 +1736,7 @@ def compute_and_analyze_trajectory_correlations(units_res, posTraj_mean, velTraj
                 ax.set_title(f'Units {pair[0]} and {pair[1]}, r = {round(corr, 2)}')
                 plt.show()
                 
-                fig.savefig(os.path.join(plots, f'corr_pair_pathlets_{pair[0]}_{pair[1]}.png'), bbox_inches='tight', dpi=plot_params.dpi)
+                fig.savefig(os.path.join(plots, 'unknown', f'corr_pair_pathlets_{pair[0]}_{pair[1]}.png'), bbox_inches='tight', dpi=plot_params.dpi)
 
     
     if FN is None:
@@ -1362,12 +1783,12 @@ def compute_and_analyze_trajectory_correlations(units_res, posTraj_mean, velTraj
     fig, ax = plt.subplots(figsize = (4, 4), dpi = plot_params.dpi)
     sns.scatterplot(ax = ax, data = df, x = 'Pearson_corr', y = 'Wji', s = 20, legend=True) 
     plt.show()
-    fig.savefig(os.path.join(plots, 'wji_vs_pearson_r.png'), bbox_inches='tight', dpi=plot_params.dpi)
+    # fig.savefig(os.path.join(plots, 'Fig4', 'wji_vs_pearson_r.png'), bbox_inches='tight', dpi=plot_params.dpi)
     
     fig, ax = plt.subplots(figsize = (4, 4), dpi = plot_params.dpi)
     sns.scatterplot(ax = ax, data = df, x = 'r_squared', y = 'Wji', s = 20, legend=True) 
     plt.show()
-    fig.savefig(os.path.join(plots, 'wji_vs_pearson_rsquare.png'), bbox_inches='tight', dpi=plot_params.dpi)
+    # fig.savefig(os.path.join(plots, 'unknown', 'wji_vs_pearson_rsquare.png'), bbox_inches='tight', dpi=plot_params.dpi)
     # fig, ax = plt.subplots(figsize = (4, 4), dpi = plot_params.dpi)
     # sns.scatterplot(ax = ax, data = df, x = 'VelTraj_corr', y = 'Wji', s = 20, legend=True) 
     # plt.show()
@@ -1381,22 +1802,33 @@ def compute_and_analyze_trajectory_correlations(units_res, posTraj_mean, velTraj
     fig, ax = plt.subplots(figsize = (4, 4), dpi = plot_params.dpi)
     sns.pointplot(ax=ax, data = df, x = 'Connection', y = 'Pearson_corr', color='black', errorbar=('ci', 99))
     plt.show()
-    fig.savefig(os.path.join(plots, 'pearson_r_vs_connection.png'), bbox_inches='tight', dpi=plot_params.dpi)
+    fig.savefig(os.path.join(plots, 'unknown', 'pearson_r_vs_connection.png'), bbox_inches='tight', dpi=plot_params.dpi)
 
     fig, ax = plt.subplots(figsize = (4, 4), dpi = plot_params.dpi)
     sns.pointplot(ax=ax, data = df, x = 'Connection', y = 'r_squared', color='black', errorbar='se')
     plt.show()
-    fig.savefig(os.path.join(plots, 'pearson_rsquare_vs_connection.png'), bbox_inches='tight', dpi=plot_params.dpi)
+    fig.savefig(os.path.join(plots, 'unknown', 'pearson_rsquare_vs_connection.png'), bbox_inches='tight', dpi=plot_params.dpi)
 
     fig, ax = plt.subplots(figsize = (4, 4), dpi = plot_params.dpi)
     sns.pointplot(ax=ax, data = df, x = 'Connection', y = 'Wji', color='black', errorbar='se')
     plt.show()
-    fig.savefig(os.path.join(plots, 'wji_vs_connection.png'), bbox_inches='tight', dpi=plot_params.dpi)
+    fig.savefig(os.path.join(plots, 'unknown', 'wji_vs_connection.png'), bbox_inches='tight', dpi=plot_params.dpi)
 
-    fig, ax = plt.subplots(figsize = (4, 4), dpi = plot_params.dpi)
+    fig, ax = plt.subplots(figsize = plot_params.pearsonr_histsize, dpi = plot_params.dpi)
     sns.histplot(ax=ax, data = df, x = 'Pearson_corr', color='black', kde=True)
+    sns.despine(ax=ax, left=True)
+    # for axis in ['bottom','left']:
+    #     ax.spines[axis].set_linewidth(plot_params.axis_linewidth)
+    #     ax.spines[axis].set_color('black')
+    # ax.tick_params(width=plot_params.tick_width, length = plot_params.tick_length*2, labelsize = plot_params.tick_fontsize)
+    ax.set_xlabel('Preferred Trajectory Correlation', fontsize = plot_params.axis_fontsize)
+    ax.set_ylabel('', fontsize = plot_params.axis_fontsize)
+    ax.set_yticks([])
+    ax.set_yticklabels('', fontsize = plot_params.axis_fontsize)
+    ax.set_ylim(0, 1350)
+    
     plt.show()
-    fig.savefig(os.path.join(plots, 'pearson_r_histogram.png'), bbox_inches='tight', dpi=plot_params.dpi)
+    fig.savefig(os.path.join(plots, 'Fig2', 'pearson_r_histogram.png'), bbox_inches='tight', dpi=plot_params.dpi)
     
     return df
             
@@ -1525,22 +1957,26 @@ def sig_tests(unit_info, x_key, y_key, alternative='greater', unit_info_reduced 
         
 if __name__ == "__main__":
     
+    with open(pkl_infile, 'rb') as f:
+        results_dict = dill.load(f)
+        
     with NWBHDF5IO(nwb_infile, 'r') as io:
         nwb = io.read()
 
         reaches_key = [key for key in nwb.intervals.keys() if 'reaching_segments' in key][0]
         
-        units, reaches, kin_module = get_sorted_units_and_apparatus_kinematics_with_metadata(nwb, reaches_key, plot=False) 
+        units, reaches, kin_module = get_sorted_units_and_apparatus_kinematics_with_metadata(nwb, reaches_key, mua_to_fix=params.mua_to_fix, plot=False) 
         
-        units = choose_units_for_model(units, quality_key = 'snr', quality_thresh = params.snr_thresh, frate_thresh = params.frate_thresh)
+        units = choose_units_for_model(units, quality_key = 'snr', quality_thresh = params.snr_thresh, frate_thresh = params.frate_thresh, bad_units_list=bad_units_list)
         # units = choose_units_for_model(units, quality_key='amp', quality_thresh=5, frate_thresh=params.frate_thresh)
         
         if FN_computed:
             spontaneous_FN = nwb.scratch['spontaneous_FN'].data[:]
             reach_FN = nwb.scratch[params.FN_key].data[:] 
-        
-    with open(pkl_infile, 'rb') as f:
-        results_dict = dill.load(f)
+            reach_set_df = nwb.scratch['split_FNs_reach_sets'].to_dataframe()
+            
+            plot_reach_samples(nReaches = None, reachset1 = reaches_to_plot[0], reachset2 = reaches_to_plot[1], 
+                                color1 = color1, color2=color2)
         
     if params.lead == 'all' and params.lag == 'all':
         lead_lag_keys = list(results_dict.keys())
@@ -1560,8 +1996,9 @@ if __name__ == "__main__":
         
     determine_trajectory_significance(lead_lag_keys, plot=False)
         
-    model_results_across_lags = organize_results_by_model_for_all_lags(fig_mode='percentile', per=60)
-    # model_results_across_lags = organize_results_by_model_for_all_lags(fig_mode='all')
+    # model_results_across_lags = organize_results_by_model_for_all_lags(fig_mode='percentile', per=60)
+    # model_results_across_lags = organize_results_by_model_for_all_lags(fig_mode='tuning_prop', prop=0.5)
+    model_results_across_lags = organize_results_by_model_for_all_lags(fig_mode='all', paperFig='Fig2')
     
     model_results_across_lags = compute_mean_model_performance(model_results_across_lags, percent = params.nUnits_percentile, percentile_mode = 'per_lag_set')
     
@@ -1592,7 +2029,7 @@ if __name__ == "__main__":
     # find_optimal_lag_averaged_over_brain_area(model_results_across_lags, only_tuned = only_tuned, plot = True, normalize=False, percentile=percentile)
     
     
-    units_res = results_dict[params.best_lead_lag_key]['all_models_summary_results']
+    units_res = results_dict[params.best_lead_lag_key]['all_models_summary_results'].copy()
     electrode_distances = get_interelectrode_distances_by_unit(units_res, array_type='utah')
     
     
@@ -1601,26 +2038,71 @@ if __name__ == "__main__":
     
     # evaluate_lead_lag_by_model_coefficients(lead_lag_key = 'lead_200_lag_200', kin_type = 'traj', mode='each_lag', proportion_thresh=0.95)
 
+    '''Plotting with no cutoff for proportion sign'''    
     # plot_model_auc_comparison(units_res, 'traj_avgPos', 'position', targets = None)
-    plot_model_auc_comparison(units_res, 'traj_avgPos_shuffled_spike_samples', 'traj_avgPos', targets = None, minauc=0.45)   
-    plot_model_auc_comparison(units_res, 'shortTraj_avgPos', 'traj_avgPos', targets = None, minauc=0.45) 
-    plot_model_auc_comparison(units_res, 'shortTraj', 'traj', targets = None, minauc=0.45)   
-    # plot_model_auc_comparison(units_res, 'shortTraj', 'traj', targets = None, minauc=0.45) 
-    plot_model_auc_comparison(units_res, 'shortTraj', 'shortTraj_avgPos', targets = None, minauc=0.45) 
-    plot_model_auc_comparison(units_res, 'traj', 'traj_avgPos', targets = None, minauc=0.45) 
+    # plot_model_auc_comparison(units_res, 'traj_avgPos_shuffled_spike_samples', 'traj_avgPos', targets = None, minauc=0.45)   
+    # plot_model_auc_comparison(units_res, 'shortTraj_avgPos', 'traj_avgPos', targets = None, minauc=0.45) 
 
-    plot_model_auc_comparison(units_res, 'shortTraj_low_tortuosity', 'traj_low_tortuosity', targets = None, minauc=0.45) 
-    sign_test, ttest = sig_tests(units_res, 'shortTraj_low_tortuosity', 'traj_low_tortuosity', alternative='greater')
-    print(sign_test)
-    plot_model_auc_comparison(units_res, 'shortTraj_high_tortuosity', 'traj_high_tortuosity', targets = None, minauc=0.45) 
-    sign_test, ttest = sig_tests(units_res, 'shortTraj_high_tortuosity', 'traj_high_tortuosity', alternative='greater')
-    print(sign_test)
-    plot_model_auc_comparison(units_res, 'shortTraj_avgPos_low_tortuosity', 'traj_avgPos_low_tortuosity', targets = None, minauc=0.45) 
-    sign_test, ttest = sig_tests(units_res, 'shortTraj_avgPos_low_tortuosity', 'traj_avgPos_low_tortuosity', alternative='greater')
-    print(sign_test)
-    plot_model_auc_comparison(units_res, 'shortTraj_avgPos_high_tortuosity', 'traj_avgPos_high_tortuosity', targets = None, minauc=0.45) 
-    sign_test, ttest = sig_tests(units_res, 'shortTraj_avgPos_high_tortuosity', 'traj_avgPos_high_tortuosity', alternative='greater')
-    print(sign_test)
+    # plot_model_auc_comparison(units_res, 'shortTraj', 'traj', targets = None, minauc=0.45)   
+    # # plot_model_auc_comparison(units_res, 'shortTraj', 'traj', targets = None, minauc=0.45) 
+    # plot_model_auc_comparison(units_res, 'shortTraj', 'shortTraj_avgPos', targets = None, minauc=0.45) 
+    plot_model_auc_comparison(units_res, 'traj', 'traj_avgPos', targets = None, minauc=0.45, maxauc=0.8, paperFig='Fig2') 
+    sign_test, ttest = sig_tests(units_res, 'traj', 'traj_avgPos', alternative='greater')
+    print(('traj', 'traj_avgPos', sign_test))
+    # plot_model_auc_comparison(units_res, 'shortTraj_low_tortuosity', 'traj_low_tortuosity', targets = None, minauc=0.45) 
+    # sign_test, ttest = sig_tests(units_res, 'shortTraj_low_tortuosity', 'traj_low_tortuosity', alternative='greater')
+    # print(sign_test)
+    # plot_model_auc_comparison(units_res, 'shortTraj_high_tortuosity', 'traj_high_tortuosity', targets = None, minauc=0.45) 
+    # sign_test, ttest = sig_tests(units_res, 'shortTraj_high_tortuosity', 'traj_high_tortuosity', alternative='greater')
+    # print(sign_test)
+    # plot_model_auc_comparison(units_res, 'shortTraj_avgPos_low_tortuosity', 'traj_avgPos_low_tortuosity', targets = None, minauc=0.45) 
+    # sign_test, ttest = sig_tests(units_res, 'shortTraj_avgPos_low_tortuosity', 'traj_avgPos_low_tortuosity', alternative='greater')
+    # print(sign_test)
+    # plot_model_auc_comparison(units_res, 'shortTraj_avgPos_high_tortuosity', 'traj_avgPos_high_tortuosity', targets = None, minauc=0.45) 
+    # sign_test, ttest = sig_tests(units_res, 'shortTraj_avgPos_high_tortuosity', 'traj_avgPos_high_tortuosity', alternative='greater')
+    # print(sign_test)
+
+    '''Plotting with 0.5 cutoff for proportion sign'''
+    plot_model_auc_comparison(units_res.loc[units_res['proportion_sign']>=0.5, :], 'shortTraj', 'traj', targets = None, minauc=0.45, maxauc=0.8, paperFig='Fig2') 
+    sign_test, ttest = sig_tests(units_res.loc[units_res['proportion_sign']>=0.5, :], 'shortTraj', 'traj', alternative='greater')
+    print(('shortTraj', 'traj', sign_test))
+    plot_model_auc_comparison(units_res.loc[units_res['proportion_sign']>=0.5, :], 'shortTraj_avgPos', 'traj_avgPos', targets = None, minauc=0.45, maxauc=0.8, paperFig='Fig2') 
+    sign_test, ttest = sig_tests(units_res.loc[units_res['proportion_sign']>=0.5, :], 'shortTraj_avgPos', 'traj_avgPos', alternative='greater')
+    print(('shortTraj_avgPos', 'traj_avgPos', sign_test))
+    # plot_model_auc_comparison(units_res.loc[units_res['proportion_sign']>=0.5, :], 'traj', 'traj_avgPos', targets = None, minauc=0.45) 
+    # sign_test, ttest = sig_tests(units_res.loc[units_res['proportion_sign']>=0.5, :], 'traj', 'traj_avgPos', alternative='greater')
+    # print(('traj', 'traj_avgPos', sign_test))
+    # plot_model_auc_comparison(units_res.loc[units_res['proportion_sign']>=0.5, :], 'shortTraj_low_tortuosity', 'traj_low_tortuosity', targets = None, minauc=0.45, paperFig='FigS2') 
+    # sign_test, ttest = sig_tests(units_res.loc[units_res['proportion_sign']>=0.5, :], 'shortTraj_low_tortuosity', 'traj_low_tortuosity', alternative='greater')
+    # print(('shortTraj_low_tortuosity', 'traj_low_tortuosity', sign_test))
+    # plot_model_auc_comparison(units_res.loc[units_res['proportion_sign']>=0.5, :], 'shortTraj_high_tortuosity', 'traj_high_tortuosity', targets = None, minauc=0.45, paperFig='FigS2') 
+    # sign_test, ttest = sig_tests(units_res.loc[units_res['proportion_sign']>=0.5, :], 'shortTraj_high_tortuosity', 'traj_high_tortuosity', alternative='greater')
+    # print(('shortTraj_high_tortuosity', 'traj_high_tortuosity', sign_test))
+    # plot_model_auc_comparison(units_res.loc[units_res['proportion_sign']>=0.5, :], 'shortTraj_avgPos_low_tortuosity', 'traj_avgPos_low_tortuosity', targets = None, minauc=0.45, paperFig='FigS2') 
+    # sign_test, ttest = sig_tests(units_res.loc[units_res['proportion_sign']>=0.5, :], 'shortTraj_avgPos_low_tortuosity', 'traj_avgPos_low_tortuosity', alternative='greater')
+    # print(('shortTraj_avgPos_low_tortuosity', 'traj_avgPos_low_tortuosity', sign_test))
+    # plot_model_auc_comparison(units_res.loc[units_res['proportion_sign']>=0.5, :], 'shortTraj_avgPos_high_tortuosity', 'traj_avgPos_high_tortuosity', targets = None, minauc=0.45, paperFig='FigS2') 
+    # sign_test, ttest = sig_tests(units_res.loc[units_res['proportion_sign']>=0.5, :], 'shortTraj_avgPos_high_tortuosity', 'traj_avgPos_high_tortuosity', alternative='greater')
+    # print(('shortTraj_avgPos_high_tortuosity', 'traj_avgPos_high_tortuosity', sign_test))
+
+    
+    # labels = ['Trajectory', 'Full Kinematics', 'Velocity', 'Short Kinematics', 'Kinematics and reachFN', 'Kinematics and Spontaneous FN Generalization']
+    labels = ['Total Shuffle', 'Trajectory Shuffle', 'Velocity', 'Trajectory', 'Short Kinematics', 'Full Kinematics']
+    plot_boxplot_of_trajectory_model_auc(units_res, other_marm = other_marm, 
+                                         model_list = ['traj_avgPos_shuffled_spikes', 
+                                                       'traj_avgPos_shuffled_traj', 'shortTraj','traj','shortTraj_avgPos',
+                                                       'traj_avgPos', 'traj_avgPos_shuffled_spikes', 
+                                                       'traj_avgPos_shuffled_traj'],
+                                         label_list = labels,
+                                         paperFig = 'Fig2')
+    
+    units_res_completely_untuned_units_filtered = units_res.loc[units_res['proportion_sign']>=0.5, :]
+    plot_boxplot_of_trajectory_model_auc(units_res_completely_untuned_units_filtered, other_marm = other_marm, 
+                                         model_list = ['traj_avgPos_shuffled_spikes', 
+                                                       'traj_avgPos_shuffled_traj', 'shortTraj','traj','shortTraj_avgPos',
+                                                       'traj_avgPos'],
+                                         label_list = labels,
+                                         paperFig = 'Fig2')
 
     # plot_model_auc_comparison(units_res, 'shortTraj_avgPos_low_tortuosity', 'shortTraj_avgPos_high_tortuosity', targets = None, minauc=0.45) 
     # plot_model_auc_comparison(units_res, 'traj_avgPos_low_tortuosity', 'traj_avgPos_high_tortuosity', targets = None, minauc=0.45) 
@@ -1631,57 +2113,66 @@ if __name__ == "__main__":
     
     # evaluate_lead_lag_by_model_coefficients(lead_lag_key = 'lead_200_lag_200', kin_type = 'traj_avgPos', mode='average', proportion_thresh=0.9)
 
-    posTraj_mean, velTraj_mean, posTraj_samples, velTraj_samples = compute_and_analyze_pathlets(params.best_lead_lag_key, 'traj_avgPos', numplots = 5)
+    posTraj_mean, velTraj_mean, posTraj_samples, velTraj_samples, axlims = compute_and_analyze_pathlets(params.best_lead_lag_key, 
+                                                                                                        'traj_avgPos', 
+                                                                                                        numplots = 5, 
+                                                                                                        unitsToPlot=units_to_plot,
+                                                                                                        axlims=unit_axlims)
 
     try:
         df = compute_and_analyze_trajectory_correlations(units_res, posTraj_mean, velTraj_mean, electrode_distances, params.best_lead_lag_key, FN = reach_FN, mode='concat', nplots=5)
-    except:
-        df = compute_and_analyze_trajectory_correlations(units_res, posTraj_mean, velTraj_mean, electrode_distances, params.best_lead_lag_key, nplots=5)    
         
-    
-    df.sort_values(by=['Connection', 'Pearson_corr'], inplace=True)
-    
-    percentile = 95
-    
-    tmp_df = df.loc[df['Connection'] == '3b-M1', :]
-    fig, (ax1, ax2) = plt.subplots(2,1, sharex=True, dpi=300)
-    sns.pointplot(ax=ax1, data=tmp_df, x='x2', y='r_squared')
-    sns.pointplot(ax=ax2, data=tmp_df, x='x2', y='Wji')
-    ax1.set_title('3b-M1')
-    ax2.set_xlabel('M1_x')
-    plt.show()
-    
-    tmp_df = df.loc[(df['Connection'] == '3b-M1') & (df['Wji'] > np.percentile(df['Wji'], percentile)), :]
-    fig, (ax1, ax2) = plt.subplots(2,1, sharex=True, dpi=300)
-    sns.stripplot(ax=ax1, data=tmp_df, x='x2', y='Pearson_corr', s = 2)
-    sns.stripplot(ax=ax2, data=tmp_df, x='x2', y='Wji',  s = 2)
-    ax2.set_ylim(0, 0.04)
-    ax1.set_title('3b-M1')
-    ax2.set_xlabel('M1_x')
-    plt.show()
+        # auc_idxs = units_res.index[units_res['traj_avgPos_auc'] > 0.6]
+        # df = compute_and_analyze_trajectory_correlations(units_res.iloc[auc_idxs, :], posTraj_mean[..., auc_idxs], velTraj_mean[..., auc_idxs], electrode_distances[np.ix_(auc_idxs, auc_idxs)], params.best_lead_lag_key, FN = reach_FN, mode='concat', nplots=5)
 
-    tmp_df = df.loc[df['Connection'] == '3a-M1', :]
-    fig, (ax1, ax2) = plt.subplots(2,1, sharex=True, dpi=300)
-    sns.pointplot(ax=ax1, data=tmp_df, x='x2', y='r_squared')
-    sns.pointplot(ax=ax2, data=tmp_df, x='x2', y='Wji')
-    ax1.set_title('3a-M1')
-    ax2.set_xlabel('M1_x')
-    plt.show()
-    
-    tmp_df = df.loc[(df['Connection'] == '3a-M1') & (df['Wji'] > np.percentile(df['Wji'], percentile)), :]
-    fig, (ax1, ax2) = plt.subplots(2,1, sharex=True, dpi=300)
-    sns.stripplot(ax=ax1, data=tmp_df, x='x2', y='Pearson_corr', s = 2)
-    sns.stripplot(ax=ax2, data=tmp_df, x='x2', y='Wji',  s = 2)
-    ax2.set_ylim(0, 0.04)
-    ax1.set_title('3a-M1')
-    ax2.set_xlabel('M1_x')
-    plt.show()
-    
-    sns.relplot(data = df, x = 'Pearson_corr', y = 'Wji', col='Connection', 
-                kind='scatter', s = 20, col_wrap=3, legend=True) 
-    fig=plt.gcf()
-    plt.show()
-    fig.savefig(os.path.join(plots, 'wji_vs_pearson_r_columns_by_connection.png'), bbox_inches='tight', dpi=plot_params.dpi) 
+        df.sort_values(by=['Connection', 'Pearson_corr'], inplace=True)
+        
+        percentile = 95
+        
+        tmp_df = df.loc[df['Connection'] == '3b-M1', :]
+        fig, (ax1, ax2) = plt.subplots(2,1, sharex=True, dpi=300)
+        sns.pointplot(ax=ax1, data=tmp_df, x='x2', y='r_squared')
+        sns.pointplot(ax=ax2, data=tmp_df, x='x2', y='Wji')
+        ax1.set_title('3b-M1')
+        ax2.set_xlabel('M1_x')
+        plt.show()
+        
+        tmp_df = df.loc[(df['Connection'] == '3b-M1') & (df['Wji'] > np.percentile(df['Wji'], percentile)), :]
+        fig, (ax1, ax2) = plt.subplots(2,1, sharex=True, dpi=300)
+        sns.stripplot(ax=ax1, data=tmp_df, x='x2', y='Pearson_corr', s = 2)
+        sns.stripplot(ax=ax2, data=tmp_df, x='x2', y='Wji',  s = 2)
+        ax2.set_ylim(0, 0.04)
+        ax1.set_title('3b-M1')
+        ax2.set_xlabel('M1_x')
+        plt.show()
+
+        tmp_df = df.loc[df['Connection'] == '3a-M1', :]
+        fig, (ax1, ax2) = plt.subplots(2,1, sharex=True, dpi=300)
+        sns.pointplot(ax=ax1, data=tmp_df, x='x2', y='r_squared')
+        sns.pointplot(ax=ax2, data=tmp_df, x='x2', y='Wji')
+        ax1.set_title('3a-M1')
+        ax2.set_xlabel('M1_x')
+        plt.show()
+        
+        tmp_df = df.loc[(df['Connection'] == '3a-M1') & (df['Wji'] > np.percentile(df['Wji'], percentile)), :]
+        fig, (ax1, ax2) = plt.subplots(2,1, sharex=True, dpi=300)
+        sns.stripplot(ax=ax1, data=tmp_df, x='x2', y='Pearson_corr', s = 2)
+        sns.stripplot(ax=ax2, data=tmp_df, x='x2', y='Wji',  s = 2)
+        ax2.set_ylim(0, 0.04)
+        ax1.set_title('3a-M1')
+        ax2.set_xlabel('M1_x')
+        plt.show()
+        
+        sns.relplot(data = df, x = 'Pearson_corr', y = 'Wji', col='Connection', 
+                    kind='scatter', s = 20, col_wrap=3, legend=True) 
+        fig=plt.gcf()
+        plt.show()
+        fig.savefig(os.path.join(plots, 'unknown', 'wji_vs_pearson_r_columns_by_connection.png'), bbox_inches='tight', dpi=plot_params.dpi) 
+        
+    except:
+        pass
+        # df = compute_and_analyze_trajectory_correlations(units_res, posTraj_mean, velTraj_mean, electrode_distances, params.best_lead_lag_key, nplots=5)    
+        
     
     # fig, ax = plt.subplots(figsize = (4, 4), dpi = plot_params.dpi)
     # g = sns.FacetGrid(data = df, col = 'Connection', col_wrap=3, sharex=False)

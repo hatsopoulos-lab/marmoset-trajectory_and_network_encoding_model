@@ -37,11 +37,11 @@ from hatlab_nwb_functions import create_nwb_copy_without_acquisition
 # base_nwb_file_pattern = '/project/nicho/data/marmosets/electrophys_data_for_processing/TY20210211_freeAndMoths/TY20210211_freeAndMoths-003'
 # phy_path = os.path.join(os.path.dirname(base_nwb_file_pattern), 'phy_IC_2023_06_12') 
 base_nwb_file_pattern = '/project/nicho/data/marmosets/electrophys_data_for_processing/MG20230416_1505_mothsAndFree/MG20230416_1505_mothsAndFree-002'
-phy_path = os.path.join(os.path.dirname(base_nwb_file_pattern), 'phy_IC_DM_2023_06_05') 
+phy_path = os.path.join(os.path.dirname(base_nwb_file_pattern), 'phy_IC_DM_2023_08_09') 
 
 nwb_acquisition_file  = base_nwb_file_pattern + '_acquisition.nwb'
 nwb_processed_infile  = base_nwb_file_pattern + '_acquisition.nwb' # base_nwb_file_pattern + '_processed.nwb'
-nwb_processed_outfile = base_nwb_file_pattern + '_processed_resorted_20230612.nwb'
+nwb_processed_outfile = base_nwb_file_pattern + '_processed.nwb'
 
 removed_chans = [] #[34, 50, 52, 67, 81]
 # removed_chans = [ch-1 for ch in removed_chans]

@@ -18,4 +18,4 @@ module load python/anaconda-2022.05
 source activate /project/nicho/environments/spyder
 
 #---------------------Execute the programs-------------------------------------------#
-python /project/nicho/projects/marmosets/code_database/analysis/trajectory_encoding_model/analysis_with_nwb_format/create_trajectory_only_models_in_full_parallel.py
+python /project/nicho/projects/marmosets/code_database/analysis/trajectory_encoding_model/analysis_with_nwb_format/create_trajectory_models_TY.py

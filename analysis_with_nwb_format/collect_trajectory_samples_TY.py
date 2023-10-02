@@ -40,7 +40,7 @@ from utils import choose_units_for_model
 # new_tag = '_encoding_model_sorting_corrected_30ms_shift_v1'  
 # pkl_outfile = base + 'DM' + new_tag + '.pkl'
 
-marmcode='MG'
+marmcode='TY'
 
 debugging = False
 skip_data_sampling = False

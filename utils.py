@@ -32,7 +32,7 @@ def get_single_lead_lag_models(all_models_data, lead, lag):
         
     return single_lead_lag_models, ll_idx
 
-def choose_units_for_model(units, quality_key = 'snr', quality_thresh = 3, frate_thresh = 2):
+def choose_units_for_model(units, quality_key = 'snr', quality_thresh = 3, frate_thresh = 2, bad_units_list = None):
     
     if quality_key == 'snr':
         quality = units.snr
@@ -42,6 +42,10 @@ def choose_units_for_model(units, quality_key = 'snr', quality_thresh = 3, frate
     
     units = units.loc[(quality > quality_thresh) | (units.quality == 'good'), :]
     units = units.loc[units.fr > frate_thresh, :]
+    
+    if bad_units_list is not None:
+        good_idx = [idx for idx, unit_info in units.iterrows() if int(unit_info.unit_name) not in bad_units_list]
+        units = units.loc[good_idx, :]
     
     units.reset_index(inplace=True, drop=True)
     
