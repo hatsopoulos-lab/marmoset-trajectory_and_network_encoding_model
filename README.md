@@ -1,6 +1,7 @@
 # marmoset-trajectory_and_network_encoding_model
 
-Contains code for analysis and visualization of data for a manuscript in final stages of preparation.
+Contains code for analysis and visualization of data for a manuscript in final stages of preparation. Some of the code 
+is complete, but some requires cleanup prior to publishing. 
 
 ### Basic Steps
 1.	Generate functional networks and peri-event time histograms to assess unit modulation.
