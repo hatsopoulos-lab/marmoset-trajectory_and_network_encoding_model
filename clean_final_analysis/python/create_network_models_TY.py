@@ -9,110 +9,71 @@ Created on Thu Apr 16 08:00:51 2020
  
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-import pickle
 import dill
 import os
 import time
 import glob
-import math
-import seaborn as sns
-from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import auc
 import statsmodels.api as sm
-from scipy.stats import binomtest, ttest_rel
-from scipy.integrate import cumtrapz
-from scipy.integrate import simps
-from mpl_toolkits import mplot3d 
-from scipy.ndimage import median_filter, gaussian_filter
-from importlib import sys, reload
+from importlib import sys
+from pathlib import Path
 
 from pynwb import NWBHDF5IO
 import ndx_pose
-from importlib import sys
-from os.path import join as pjoin
 
-sys.path.insert(0, '/project/nicho/projects/marmosets/code_database/data_processing/nwb_tools/hatlab_nwb_tools/')
-from hatlab_nwb_functions import get_sorted_units_and_apparatus_kinematics_with_metadata
+data_path = Path('/project/nicho/projects/dalton/network_encoding_paper/clean_final_analysis/data')
+code_path = Path('/project/nicho/projects/marmosets/code_database/analysis/trajectory_encoding_model/clean_final_analysis/')
 
-sys.path.insert(0, '/project/nicho/projects/marmosets/code_database/analysis/trajectory_encoding_model/')
-from utils import get_interelectrode_distances_by_unit, choose_units_for_model
+sys.path.insert(0, str(code_path))
+from utils import get_interelectrode_distances_by_unit
 
-marmcode = 'MG'
+pkl_in_tag  = 'kinematic_models_summarized'
+pkl_out_tag = 'network_models_created' 
+
+marmcode = 'TY'
 debugging = False
 
 if marmcode=='TY':
-    nwb_infile = '/project/nicho/projects/dalton/data/TY/TY20210211_freeAndMoths-003_resorted_20230612_DM_with_functional_networks.nwb' 
-    pkl_infile = '/project/nicho/projects/dalton/data/TY/TY20210211_freeAndMoths-003_resorted_20230612_DM_FINAL_trajectory_shuffled_encoding_models_30ms_shift_v3.pkl'
-    # pkl_infile = '/project/nicho/projects/dalton/data/TY/TY20210211_freeAndMoths-003_resorted_20230612_DM_encoding_model_sorting_corrected_30ms_shift_v5.pkl'
+    nwb_infile   = data_path / 'TY' / 'TY20210211_freeAndMoths-003_resorted_20230612_DM_with_functional_networks.nwb' 
     models_already_stored = False
-    extra_tag = ''
 elif marmcode=='MG':
-    nwb_infile = '/project/nicho/projects/dalton/data/MG/MG20230416_1505_mothsAndFree-002_processed_DM_with_functional_networks.nwb'
-    pkl_infile = '/project/nicho/projects/dalton/data/MG/MG20230416_1505_mothsAndFree-002_processed_DM_alpha_pt00001_removedUnits_181_440_fixedMUA_745_796_encoding_models_30ms_shift_v3.pkl'
-    # pkl_infile = '/project/nicho/projects/dalton/data/MG/MG20230416_1505_mothsAndFree-002_processed_DM_dlcIter5_resortedUnits_trajectory_shuffled_encoding_models_30ms_shift_v3.pkl'
-    extra_tag = ''
-
+    nwb_infile   = data_path / 'MG' / 'MG20230416_1505_mothsAndFree-002_processed_DM_with_functional_networks.nwb'
     models_already_stored = False
 
-split_pattern = '_shift_v' # '_results_v'
-base, ext = os.path.splitext(pkl_infile)
-base, in_version = base.split(split_pattern)
-out_version = str(int(in_version) + 1)  
-pkl_outfile = base + extra_tag + split_pattern + out_version + ext
+pkl_infile   = nwb_infile.parent / f'{nwb_infile.stem.split("_with_functional_networks")[0]}_{pkl_in_tag}.pkl'
+pkl_outfile  = nwb_infile.parent / f'{nwb_infile.stem.split("_with_functional_networks")[0]}_{pkl_out_tag}.pkl'
 
-data_folder, base_file = os.path.split(base)
-tmp_job_array_folder = os.path.join(data_folder, 'jobs_tmp_saved_files', '%s_v%s' % (base_file+extra_tag, out_version))
-
-if models_already_stored:
-    models_storage_folder, ext = os.path.splitext(pkl_infile)    
-    models_storage_folder = os.path.basename(models_storage_folder)    
-else:
-    models_storage_folder, ext = os.path.splitext(pkl_outfile)
-    models_storage_folder = os.path.basename(models_storage_folder)    
-
-scratch_folder = data_folder.replace('/project/nicho/projects/dalton/data', '/scratch/midway3/daltonm/analysis')    
-models_storage_folder = os.path.join(scratch_folder, 'stored_encoding_models', models_storage_folder)
-
+tmp_job_array_folder = pkl_outfile.parent / 'network_jobs_tmp_files' / f'{pkl_outfile.stem}'          
+models_storage_folder = Path('/scratch/midway3/daltonm/analysis/stored_encoding_models') / pkl_outfile.stem
 os.makedirs(models_storage_folder, exist_ok=True)
 os.makedirs(tmp_job_array_folder, exist_ok=True) 
 
 remove_models = []
 
-dataset_code = os.path.basename(pkl_infile)[:10] 
-plots = os.path.join(os.path.dirname(os.path.dirname(pkl_infile)), 'plots', dataset_code)
-
-
-# if run_model_only:
-#     model_infile  = pkl_outfile
-#     base, ext = os.path.splitext(model_infile)
-#     model_outfile = base + '_with_models_tmp' + ext
-
 class params:
     
     use_preset_regParams = True
-    alpha = 0.00001#0.0001#0.001
+    alpha = 5e-6
     l1 = 0
     
-    significant_proportion_thresh = 0.99
-    numThresh = 100
+    numThresh = 500
     if debugging:
         num_model_samples = 2
     else:
-        num_model_samples = 100
+        num_model_samples = 1000
     
     primary_traj_model = 'traj_avgPos'
     if marmcode == 'TY':
         lead_lag_keys_for_network = ['lead_100_lag_300', 'lead_200_lag_300']
-        intra_inter_areas_list = [['M1'], ['3a', '3b'], ['3a'], ['3b'], ['M1', '3b'], ['3a', 'M1']]
-        intra_inter_names_list = ['motor', 'sensory',    '3a',    '3b', '3b_and_motor', '3a_and_motor']
+        intra_inter_areas_list = [['Motor'], ['Sensory']]
+        intra_inter_names_list = ['Motor', 'Sensory']
         trainRatio = 0.8
 
     elif marmcode == 'MG':
-        lead_lag_keys_for_network = ['lead_200_lag_300', 'lead_100_lag_300']
-        intra_inter_areas_list = [['M1', '6dc'],    ['3a']]
-        intra_inter_names_list = [      'motor', 'sensory']
+        lead_lag_keys_for_network = ['lead_100_lag_300', 'lead_200_lag_300']
+        intra_inter_areas_list = [['Motor'], ['Sensory']]
+        intra_inter_names_list = ['Motor', 'Sensory']
         trainRatio = 0.9
         
     reach_FN_key = 'split_reach_FNs'
@@ -290,9 +251,9 @@ def modify_FN_weights_by_cortical_area_OLD(weights, task_info):
 
 def select_units_to_shuffle(weights, mode, percent, seed_count, mod_name):
     if mode == 'strength':
-        shuffle_idxs = np.where(weights > np.percentile(weights, 100-percent))
+        shuffle_idxs = np.where(weights >= np.percentile(weights, 100-percent))
     elif mode == 'random':
-        num_to_shuffle = np.where(weights > np.percentile(weights, 100-percent))[0].size
+        num_to_shuffle = np.where(weights >= np.percentile(weights, 100-percent))[0].size
         idx_pairs = []
         for i in range(weights.shape[0]):
             for j in range(weights.shape[1]):
@@ -312,6 +273,7 @@ def select_units_to_shuffle(weights, mode, percent, seed_count, mod_name):
     shuffle_set = (shuffle_idxs[0], shuffle_idxs[1], weights_at_idxs)
     
     return shuffle_set
+
 def shuffle_selected_network_idxs(weights, shuffle_set, shuffle_edges_mode, seed_count):
     
     target = shuffle_set[0].copy()
@@ -333,15 +295,11 @@ def shuffle_selected_network_idxs(weights, shuffle_set, shuffle_edges_mode, seed
             swap_idx = rng_swap.choice(possible_new_idx, 1)[0]
             target_shuf[[idx, swap_idx]] = target_shuf[[swap_idx, idx]]            
 
-        # original_weights = weights.copy()        
-
         for idx, (targ, targ_shuf, sour) in enumerate(zip(target, target_shuf, source)):
             if targ == targ_shuf:
                 continue
             
-            weights[[targ, targ_shuf], sour] = weights[[targ_shuf, targ], sour]
-            # print((idx, weights.sum(), np.sum(weights!=original_weights)))
-            
+            weights[[targ, targ_shuf], sour] = weights[[targ_shuf, targ], sour]            
     else:
         raise Exception('\n "%s" mode for shuffling weights has not been implemented\n\n' % shuffle_edges_mode)
     
@@ -518,7 +476,6 @@ def compute_network_features(spike_samples, sample_info, FN, FN_key, models_per_
 def create_network_features_and_store_in_dict(task_info, reach_set_df):
 
     lead_lag_key = task_info['lead_lag_key']
-    model_class = task_info['model_class']
     model_name  = task_info['model_name']
     train_FN    = task_info['train_FN']
     test_FN     = task_info['test_FN']
@@ -653,7 +610,6 @@ def train_and_test_glm(task_info, network_features_train_FN, network_features_te
             
                 if save_GLMs:
                     model_filepath = os.path.join(models_storage_folder, '%s_%s_sample_%s_unit_%s_encoding_model.pkl' % (lead_lag_key, model_name, str(samp).zfill(4), str(unit).zfill(3)))
-                    # print('saving file to %s' % model_filepath, flush=True)
                     with open(model_filepath, 'wb') as f:
                         dill.dump(encodingModel, f, recurse=True)
                     
@@ -664,11 +620,8 @@ def train_and_test_glm(task_info, network_features_train_FN, network_features_te
                     stored_encoding_model = encodingModel 
                 else:   
                     model_filepath = os.path.join(models_storage_folder, '%s_%s_sample_%s_unit_%s_encoding_model.pkl' % (lead_lag_key, trained_glm_source, str(samp).zfill(4), str(unit).zfill(3)))
-                    # print('loading file from %s' % model_filepath, flush=True)
                     with open(model_filepath, 'rb') as f:
                         stored_encoding_model = dill.load(f) 
-
-                    # print(('model', stored_encoding_model))
                     
                 trainPredictions.append(stored_encoding_model.predict(sm.add_constant(trainFts))) 
 
@@ -865,12 +818,6 @@ if __name__ == "__main__":
         task_id = int(os.getenv('SLURM_ARRAY_TASK_ID'))
         n_tasks = int(os.getenv('SLURM_ARRAY_TASK_COUNT')) 
         file_creation_task = int(os.getenv('SLURM_ARRAY_TASK_MAX'))
-
-    
-    # if n_tasks != len(params.lead_lag_keys_for_network) * params.num_models_including_shuffles * len(params.sample_ranges) and not debugging:
-    #     print('number of jobs in array does not equal length of leads or lags to be tested')
-    #     print('ending job', flush=True)
-    
     
     with open(pkl_infile, 'rb') as f:
         results_dict = dill.load(f)
@@ -909,16 +856,6 @@ if __name__ == "__main__":
                                          'save_GLMs'             : [False, False, False, False],
                                          'save_network_features' : [False, False, False, False]},
                    
-                   'cortical_area_FN' : {'model_names'           : ['kin_model_intra_reach_FN', 'kin_model_inter_reach_FN', 'intra_reach_FN', 'inter_reach_FN'],  
-                                         'shuf_mode'             : 'unaltered',
-                                         'models_per_set'        : 1,
-                                         'cortical_area_idxs'    : cortical_area_idxs,
-                                         'FN'                    : [reach_FN.copy(), reach_FN.copy(), reach_FN.copy(), reach_FN.copy()],
-                                         'FN_key'                : ['reach_FN', 'reach_FN', 'reach_FN', 'reach_FN'],
-                                         'trained_glm_source'    : ['kin_model_intra_reach_FN', 'kin_model_inter_reach_FN', 'intra_reach_FN', 'inter_reach_FN'],
-                                         'save_GLMs'             : [True, True, True, True],
-                                         'save_network_features' : [True, True, True, True]},
-                   
                    'reach_FN'         : {'model_names'           : ['reach_FN', 'kin_model_reach_FN'],
                                          'shuf_mode'             : 'unaltered',
                                          'models_per_set'        : 1,
@@ -939,7 +876,7 @@ if __name__ == "__main__":
                     'strength_shuffles': {'model_names'           : ['kin_model_tmp', 'kin_model_tmp'],
                                           'shuf_mode'             : ['strength', 'random'],
                                           'edges_to_shuffle'      : ['weights','topology'],
-                                          'percents'              : [1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 99],
+                                          'percents'              : [1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100],
                                           'retrain_model'         : False,
                                           'models_per_set'        : 84,
                                           'FN'                    : [reach_FN.copy(), spontaneous_FN.copy(), reach_FN.copy(), spontaneous_FN.copy()],
@@ -947,65 +884,23 @@ if __name__ == "__main__":
                                           'trained_glm_source'    : ['kin_model_reach_FN', 'kin_model_spontaneous_FN'],
                                           'save_GLMs'             : [False, False],
                                           'save_network_features' : [False, False]}}
-                    # 'strength_shuffles': {'model_names'           : ['kin_model_tmp', 'kin_model_tmp'],
-                    #                       'shuf_mode'             : ['strength', 'random'],
-                    #                       'edges_to_shuffle'      : ['weights','topology'],
-                    #                       'percents'              : [1, 10, 25, 50, 75, 99],
-                    #                       'retrain_model'         : False,
-                    #                       'models_per_set'        : 24,
-                    #                       'FN'                    : [reach_FN.copy(), spontaneous_FN.copy(), reach_FN.copy(), spontaneous_FN.copy()],
-                    #                       'FN_key'                : ['reach_FN', 'spontaneous_FN'],
-                    #                       'trained_glm_source'    : ['kin_model_reach_FN', 'kin_model_spontaneous_FN'],
-                    #                       'save_GLMs'             : [False, False],
-                    #                       'save_network_features' : [False, False]}}
-                   
-                    # 'strength_shuffles': {'model_names'           : ['kin_model_tmp', 'kin_model_tmp'],
-                    #                       'shuf_mode'             : ['strength', 'random'],
-                    #                       'edges_to_shuffle'      : ['weights','topology'],
-                    #                       'percents'              : [1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 99],
-                    #                       'retrain_model'         : False,
-                    #                       'models_per_set'        : 84,
-                    #                       'FN'                    : [reach_FN.copy(), spontaneous_FN.copy(), reach_FN.copy(), spontaneous_FN.copy()],
-                    #                       'FN_key'                : ['reach_FN', 'spontaneous_FN'],
-                    #                       'trained_glm_source'    : ['kin_model_reach_FN', 'kin_model_spontaneous_FN'],
-                    #                       'save_GLMs'             : [False, False],
-                    #                       'save_network_features' : [False, False]}}
 
-                    # 'in_area_shuffles' : {'model_names'           : ['kin_model_intra_tmp', 'kin_model_inter_tmp', 'intra_tmp', 'inter_tmp'],  
-                    #                       'shuf_mode'             : ['strength', 'random'],
-                    #                       'edges_to_shuffle'      : ['weights','topology'],
-                    #                       'percents'              : [1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 99],
-                    #                       'retrain_model'         : False,
-                    #                       'models_per_set'        : 84,
-                    #                       'cortical_area_idxs'    : cortical_area_idxs,
-                    #                       'FN'                    : [reach_FN.copy(), reach_FN.copy(), reach_FN.copy(), reach_FN.copy()],
-                    #                       'FN_key'                : ['reach_FN', 'reach_FN', 'reach_FN', 'reach_FN'],
-                    #                       'trained_glm_source'    : ['kin_model_intra_reach_FN', 'kin_model_inter_reach_FN', 'intra_reach_FN', 'inter_reach_FN'],
-                    #                       'save_GLMs'             : [False, False, False, False],
-                    #                       'save_network_features' : [False, False, False, False]}               
-    
-                   # 'strength_shuffles': {'model_names'           : ['tmp', 'tmp', 'kin_model_tmp', 'kin_model_tmp'],
-                   #                       'shuf_mode'             : ['strength', 'random'],
-                   #                       'edges_to_shuffle'      : ['weights','topology'],
-                   #                       'percents'              : [1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 99],
-                   #                       'retrain_model'         : False,
-                   #                       'models_per_set'        : 84,
-                   #                       'FN'                    : [reach_FN.copy(), spontaneous_FN.copy(), reach_FN.copy(), spontaneous_FN.copy()],
-                   #                       'FN_key'                : ['reach_FN', 'spontaneous_FN', 'reach_FN', 'spontaneous_FN'],
-                   #                       'trained_glm_source'    : ['reach_FN', 'spontaneous_FN', 'kin_model_reach_FN', 'kin_model_spontaneous_FN'],
-                   #                       'save_GLMs'             : [False, False, False, False],
-                   #                       'save_network_features' : [False, False, False, False]}
-
+                   # 'cortical_area_FN' : {'model_names'           : ['kin_model_intra_reach_FN', 'kin_model_inter_reach_FN', 'intra_reach_FN', 'inter_reach_FN'],  
+                   #                       'shuf_mode'             : 'unaltered',
+                   #                       'models_per_set'        : 1,
+                   #                       'cortical_area_idxs'    : cortical_area_idxs,
+                   #                       'FN'                    : [reach_FN.copy(), reach_FN.copy(), reach_FN.copy(), reach_FN.copy()],
+                   #                       'FN_key'                : ['reach_FN', 'reach_FN', 'reach_FN', 'reach_FN'],
+                   #                       'trained_glm_source'    : ['kin_model_intra_reach_FN', 'kin_model_inter_reach_FN', 'intra_reach_FN', 'inter_reach_FN'],
+                   #                       'save_GLMs'             : [True, True, True, True],
+                   #                       'save_network_features' : [True, True, True, True]},
             
     all_tasks_info_list, task_model_list = assign_models_to_job_tasks(models_dict, task_id)        
     n_job_files = sum([len(single_task_list) for single_task_list in all_tasks_info_list])
     
     for model_set, task_info in enumerate(task_model_list):
-        # if model_set == 0:
-        #     continue
         
-        pkl_tmp_job_file = os.path.join(tmp_job_array_folder, 
-                                        base_file + split_pattern + out_version + '_tmp_job_%s_model_set_%s' % (str(task_id).zfill(2), str(model_set).zfill(2)) + ext)
+        pkl_tmp_job_file = tmp_job_array_folder / f'{pkl_outfile.stem}_tmp_job_{str(task_id).zfill(3)}_model_set_{str(model_set).zfill(2)}.pkl'
         
         task_info = create_network_features_and_store_in_dict(task_info, reach_set_df)
         
@@ -1016,12 +911,8 @@ if __name__ == "__main__":
         for network_features_train_FN, network_features_test_FN, model_name in zip(task_info['network_features_train_FN'], 
                                                                                    task_info['network_features_test_FN'], 
                                                                                    task_info['model_names']):
-            if params.use_preset_regParams:
-                alpha = params.alpha
-                l1 = params.l1
-            else:
-                alpha = results_dict[lead_lag_key]['model_results'][params.primary_traj_model]['alpha']
-                l1    = results_dict[lead_lag_key]['model_results'][params.primary_traj_model]['l1']          
+            alpha = params.alpha
+            l1 = params.l1       
             
             model_results = train_and_test_glm(task_info, 
                                                network_features_train_FN,

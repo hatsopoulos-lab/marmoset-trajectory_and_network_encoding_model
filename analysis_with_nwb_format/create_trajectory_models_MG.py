@@ -466,9 +466,11 @@ if __name__ == "__main__":
     if debugging:
         task_id = 3
         n_tasks = 1
+        last_task = task_id
     else:
         task_id = int(os.getenv('SLURM_ARRAY_TASK_ID'))
-        n_tasks = int(os.getenv('SLURM_ARRAY_TASK_COUNT'))       
+        n_tasks = int(os.getenv('SLURM_ARRAY_TASK_COUNT'))  
+        last_task = int(os.getenv('SLURM_ARRAY_TASK_MAX'))
     
     with open(pkl_infile, 'rb') as f:
         results_dict = dill.load(f)
@@ -495,7 +497,7 @@ if __name__ == "__main__":
         
         print('\n\n Finished running models  at %s\n\n' % time.strftime('%c', time.localtime()), flush=True)
         
-        if task_id == n_tasks-1:
+        if task_id == last_task:
             while len(glob.glob(os.path.join(tmp_job_array_folder, '*'))) < n_tasks:
                 completed_jobs = len(glob.glob(os.path.join(tmp_job_array_folder, '*')))
                 print(f'completed jobs = {completed_jobs}, n_tasks = {n_tasks}. Waiting for all jobs to finish model creation', flush=True)

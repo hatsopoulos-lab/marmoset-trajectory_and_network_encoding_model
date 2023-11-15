@@ -868,7 +868,7 @@ if __name__ == "__main__":
     else:
         task_id = int(os.getenv('SLURM_ARRAY_TASK_ID'))
         n_tasks = int(os.getenv('SLURM_ARRAY_TASK_COUNT')) 
-        file_creation_task = n_tasks-1
+        file_creation_task = int(os.getenv('SLURM_ARRAY_TASK_MAX'))
     
     # if n_tasks != len(params.lead_lag_keys_for_network) * params.num_models_including_shuffles * len(params.sample_ranges) and not debugging:
     #     print('number of jobs in array does not equal length of leads or lags to be tested')
