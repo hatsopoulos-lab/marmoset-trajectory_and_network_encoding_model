@@ -39,25 +39,25 @@ class params:
     
     if marmcode == 'MG':
         fps = 200
-        trainRatio  = 0.9
+        trainRatio  = 0.8
     elif marmcode =='TY':
         fps = 150
         trainRatio  = 0.8
        
     num_models_including_shuffles = 7
-    num_model_iters = 1000
+    num_model_iters = 500
     if debugging:
         # iter_ranges = [range(0, 2), range(2, 4)]
         iter_ranges = [range(0, 33), range(33, 66), range(66, 100)]
     else:
-        iter_ranges = [range(0, 500), range(500, 1000)]
+        iter_ranges = [range(0, 250), range(250, 500)]
 
     num_features_after_traj = 3
 
     alpha = 0.05
     l1 = 0
 
-    numThresh = 500
+    numThresh = 100
     shuffle_to_test = ['traj_avgPos']
     kin_to_split = 'tortuosity'
     models_to_split_by_kin = [] #['traj_avgPos', 'shortTraj_avgPos', 'traj', 'shortTraj']

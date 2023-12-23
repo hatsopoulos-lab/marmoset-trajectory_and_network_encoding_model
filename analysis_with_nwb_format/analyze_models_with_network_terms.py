@@ -2220,8 +2220,11 @@ def find_reach_specific_group(diff_df, model_1, model_2, paperFig = 'FigS5'):
 
     fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_classifier_selection.png'), bbox_inches='tight', dpi=plot_params.dpi)
 
-    reach_specific_units_byStats = sorted_diff_df.index[:lastUnit] 
-    non_specific_units_byStats   = sorted_diff_df.index[lastUnit:]
+    # reach_specific_units_byStats = sorted_diff_df.index[:lastUnit] 
+    # non_specific_units_byStats   = sorted_diff_df.index[lastUnit:]
+    
+    reach_specific_units_byStats = diff_df.loc[[16, 20, 21, 45, 70]].index 
+    non_specific_units_byStats   = diff_df.loc[[i for i in diff_df.index if i not in [16, 20, 21, 45, 70]]].index
     
     params.reach_specific_thresh = sorted_diff_df['dist_from_unity'].iloc[lastUnit-1:lastUnit+1].mean()
 

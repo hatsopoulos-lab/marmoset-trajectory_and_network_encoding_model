@@ -33,13 +33,13 @@ pkl_out_tag = 'network_models_created'
 
 marmcode = 'TY'
 debugging = False
+shuffles_only = True
+no_shuffles = False
 
 if marmcode=='TY':
     nwb_infile   = data_path / 'TY' / 'TY20210211_freeAndMoths-003_resorted_20230612_DM_with_functional_networks.nwb' 
-    models_already_stored = False
 elif marmcode=='MG':
     nwb_infile   = data_path / 'MG' / 'MG20230416_1505_mothsAndFree-002_processed_DM_with_functional_networks.nwb'
-    models_already_stored = False
 
 pkl_infile   = nwb_infile.parent / f'{nwb_infile.stem.split("_with_functional_networks")[0]}_{pkl_in_tag}.pkl'
 pkl_outfile  = nwb_infile.parent / f'{nwb_infile.stem.split("_with_functional_networks")[0]}_{pkl_out_tag}.pkl'
@@ -54,27 +54,27 @@ remove_models = []
 class params:
     
     use_preset_regParams = True
-    alpha = 5e-6
+    alpha = 1e-6 #5e-6
     l1 = 0
     
-    numThresh = 500
+    numThresh = 100
     if debugging:
         num_model_samples = 2
     else:
-        num_model_samples = 1000
+        num_model_samples = 250
     
     primary_traj_model = 'traj_avgPos'
     if marmcode == 'TY':
-        lead_lag_keys_for_network = ['lead_100_lag_300', 'lead_200_lag_300']
+        lead_lag_keys_for_network = ['lead_100_lag_300', 'lead_100_lag_200']
         intra_inter_areas_list = [['Motor'], ['Sensory']]
         intra_inter_names_list = ['Motor', 'Sensory']
         trainRatio = 0.8
 
     elif marmcode == 'MG':
-        lead_lag_keys_for_network = ['lead_100_lag_300', 'lead_200_lag_300']
+        lead_lag_keys_for_network = ['lead_100_lag_300', 'lead_100_lag_200']
         intra_inter_areas_list = [['Motor'], ['Sensory']]
         intra_inter_names_list = ['Motor', 'Sensory']
-        trainRatio = 0.9
+        trainRatio = 0.8
         
     reach_FN_key = 'split_reach_FNs'
     encoding_model_for_trainPredictions = '%s_reach_FN' % primary_traj_model
@@ -261,7 +261,7 @@ def select_units_to_shuffle(weights, mode, percent, seed_count, mod_name):
                     idx_pairs.append((i, j))
         idx_choice_rng = np.random.default_rng(seed_count * 2)
 
-        shuffle_idxs = idx_choice_rng.choice(idx_pairs, size = num_to_shuffle, replace = False)
+        shuffle_idxs = idx_choice_rng.choice(idx_pairs, size = np.min([num_to_shuffle, np.shape(idx_pairs)[0]]), replace = False)
         shuffle_idxs = (shuffle_idxs[:, 0], shuffle_idxs[:, 1])
     else:
         raise Exception('\n "%s" mode for selecting units to shuffle has not been implemented\n\n' % mode)
@@ -603,7 +603,7 @@ def train_and_test_glm(task_info, network_features_train_FN, network_features_te
             if train_model:
                 glm = sm.GLM(trainSpks,
                              sm.add_constant(trainFts), 
-                             family=sm.families.Poisson(link=sm.families.links.log()))
+                             family=sm.families.Poisson(link=sm.families.links.Log()))
                 encodingModel = glm.fit_regularized(method='elastic_net', alpha=alpha, L1_wt=l1)
             
                 coefs  [:, unit, samp] = encodingModel.params            
@@ -876,9 +876,9 @@ if __name__ == "__main__":
                     'strength_shuffles': {'model_names'           : ['kin_model_tmp', 'kin_model_tmp'],
                                           'shuf_mode'             : ['strength', 'random'],
                                           'edges_to_shuffle'      : ['weights','topology'],
-                                          'percents'              : [1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100],
+                                          'percents'              : [1, 5, 10, 15, 20, 25, 30, 35, 40, 50, 60, 70, 80, 90, 100],
                                           'retrain_model'         : False,
-                                          'models_per_set'        : 84,
+                                          'models_per_set'        : 60,
                                           'FN'                    : [reach_FN.copy(), spontaneous_FN.copy(), reach_FN.copy(), spontaneous_FN.copy()],
                                           'FN_key'                : ['reach_FN', 'spontaneous_FN'],
                                           'trained_glm_source'    : ['kin_model_reach_FN', 'kin_model_spontaneous_FN'],
@@ -894,11 +894,18 @@ if __name__ == "__main__":
                    #                       'trained_glm_source'    : ['kin_model_intra_reach_FN', 'kin_model_inter_reach_FN', 'intra_reach_FN', 'inter_reach_FN'],
                    #                       'save_GLMs'             : [True, True, True, True],
                    #                       'save_network_features' : [True, True, True, True]},
+                   
+                   # [1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100]
             
     all_tasks_info_list, task_model_list = assign_models_to_job_tasks(models_dict, task_id)        
     n_job_files = sum([len(single_task_list) for single_task_list in all_tasks_info_list])
     
     for model_set, task_info in enumerate(task_model_list):
+        
+        if shuffles_only and 'edges_to_shuffle' not in task_info.keys():
+            continue
+        elif no_shuffles and 'edges_to_shuffle' in task_info.keys():
+            continue
         
         pkl_tmp_job_file = tmp_job_array_folder / f'{pkl_outfile.stem}_tmp_job_{str(task_id).zfill(3)}_model_set_{str(model_set).zfill(2)}.pkl'
         

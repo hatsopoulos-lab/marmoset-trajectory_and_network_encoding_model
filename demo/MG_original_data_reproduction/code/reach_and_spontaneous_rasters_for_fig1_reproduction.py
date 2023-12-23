@@ -26,13 +26,15 @@ from scipy.signal import savgol_filter
 import pandas as pd
 from pathlib import Path
 
-data_path = Path('/project/nicho/projects/dalton/network_encoding_paper/clean_final_analysis/data')
-code_path = Path('/project/nicho/projects/marmosets/code_database/analysis/trajectory_encoding_model/clean_final_analysis/')
+script_directory = Path(os.path.dirname(os.path.abspath(sys.argv[0])))
+code_path = script_directory.parent.parent.parent / 'clean_final_analysis/'
+data_path = script_directory.parent.parent / 'data' / 'original'
 
 sys.path.insert(0, str(code_path))
 from hatlab_nwb_functions import get_sorted_units_and_apparatus_kinematics_with_metadata, remove_duplicate_spikes_from_good_single_units   
+from utils import get_interelectrode_distances_by_unit, load_dict_from_hdf5, save_dict_to_hdf5
 
-marmcode = 'TY'
+marmcode = 'MG'
 lead_lag_key = 'lead_100_lag_300'
 fig_mode='paper'
 pkl_in_tag = 'kinematic_models_summarized'
@@ -71,9 +73,9 @@ spontColor = (183/255, 219/255, 165/255)
 
 dataset_code = pkl_infile.stem.split('_')[0]
 if fig_mode == 'paper':
-    plots = nwb_infile.parent.parent.parent / 'plots' / dataset_code
+    plots = script_directory.parent / 'plots' / dataset_code
 elif fig_mode == 'pres':
-    plots = nwb_infile.parent.parent.parent / 'presentation_plots' / dataset_code    
+    plots = script_directory.parent / 'presentation_plots' / dataset_code  
     
 os.makedirs(plots, exist_ok=True)
 
@@ -692,8 +694,11 @@ if __name__ == '__main__':
     # io_acq = NWBHDF5IO(nwb_acquisition_file, mode='r')
     # nwb_acq = io_acq.read()
     
-    with open(pkl_infile, 'rb') as f:
-        results_dict = dill.load(f)
+    # with open(pkl_infile, 'rb') as f:
+    #     results_dict = dill.load(f)
+
+    results_dict = load_dict_from_hdf5(pkl_infile.with_suffix('.h5'), top_level_list=False, convert_4d_array_to_list = True)
+
     units_res = results_dict[lead_lag_key]['all_models_summary_results']
     
     with NWBHDF5IO(nwb_infile, 'r') as io:

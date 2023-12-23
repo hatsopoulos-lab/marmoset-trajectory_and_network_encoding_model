@@ -15,16 +15,30 @@ import itertools
 import os
 from scipy.stats import binomtest, ttest_rel
 from pathlib import Path
+from importlib import sys
 
-marmscode = 'both'
+sys.path.insert(0, '/project/nicho/projects/marmosets/code_database/analysis/trajectory_encoding_model/clean_final_analysis/')
+from utils import save_dict_to_hdf5, load_dict_from_hdf5
+
+marmscode = 'MG'
 filter_untuned = False
+
+script_directory = Path(os.path.dirname(os.path.abspath(sys.argv[0])))
+code_path = script_directory.parent.parent.parent / 'clean_final_analysis/'
+data_path = script_directory.parent.parent / 'data' / 'original'
+fig_path = script_directory.parent / 'plots' 
+
 
 if marmscode == 'TY':
     pkl_infiles = ['/project/nicho/projects/dalton/data/TY/TY20210211_freeAndMoths-003_resorted_20230612_DM_alpha_pt00001_encoding_models_30msREGTEST_V2_shift_v4.pkl']
     marms = ['TY']
 elif marmscode == 'MG':
-    pkl_infiles = ['/project/nicho/projects/dalton/data/MG/MG20230416_1505_mothsAndFree-002_processed_DM_dlcIter5_resortedUnits_trajectory_shuffled_encoding_models_30msREGTEST_V2_shift_v4.pkl']
+    pkl_infiles = [data_path / 'MG' / 'MG20230416_1505_mothsAndFree-002_processed_DM_regularization_test_results.h5']
     marms = ['MG']
+    tuned_units = [ [0,  1,  2,  6,  8, 10, 11, 12, 14, 15, 16, 17, 18, 19, 20, 21, 22, 24,
+                    25, 26, 27, 28, 29, 30, 32, 33, 34, 37, 38, 39, 40, 41, 42, 43, 44, 45,
+                    46, 47, 48, 49, 52, 54, 55, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67,
+                    69, 70, 71, 72]]
 elif marmscode == 'both':
     pkl_infiles = ['/project/nicho/projects/dalton/data/TY/TY20210211_freeAndMoths-003_resorted_20230612_DM_alpha_pt00001_encoding_models_30msREGTEST_V2_shift_v4.pkl',
                   '/project/nicho/projects/dalton/data/MG/MG20230416_1505_mothsAndFree-002_processed_DM_dlcIter5_resortedUnits_trajectory_shuffled_encoding_models_30msREGTEST_V2_shift_v4.pkl']
@@ -37,13 +51,13 @@ elif marmscode == 'both':
 
 lags = ['lead_100_lag_300', 'lead_200_lag_300']
 
-fig_path = Path('/project/nicho/projects/dalton/network_encoding_paper/clean_final_analysis/plots')
-
 regtest_df = pd.DataFrame()
 for marm, pkl_file, tuned_idxs in zip(marms, pkl_infiles, tuned_units):    
 
-    with open(pkl_file, 'rb') as f:
-        results_dict = dill.load(f)
+    # with open(pkl_file, 'rb') as f:
+    #     results_dict = dill.load(f)
+    results_dict = load_dict_from_hdf5(pkl_file.with_suffix('.h5'), top_level_list=False, convert_4d_array_to_list = True)
+
     
     model_results = results_dict[lags[0]]['model_results']    
     # FN_only_keys = sorted([key for key in model_results.keys() if key[:8] == 'reach_FN'])
@@ -94,7 +108,6 @@ for marm, pkl_file, tuned_idxs in zip(marms, pkl_infiles, tuned_units):
                         
                 regtest_df = pd.concat((regtest_df, tmp_df), ignore_index=True)
             
-            
 for model, marm in itertools.product(['Full Kinematics', 'Kinematics + reachFN'], marms): 
 
     tmp_df = regtest_df.loc[(regtest_df.model == model) & (regtest_df.marm == marm)]     
@@ -128,14 +141,12 @@ for model, marm in itertools.product(['Full Kinematics', 'Kinematics + reachFN']
     ax.set_xlabel('Regularization Penalty (alpha)')
     sns.despine(ax=ax)
     
-    pkl_file = [f for f in pkl_infiles if f'data/{marm}/' in f][0]
-    dataset_code = pkl_file.split(f'data/{marm}/')[-1][:10] 
+    pkl_file = [f for f in pkl_infiles if f'data/original/{marm}/' in str(f)][0]
+    dataset_code = str(pkl_file).split(f'data/original/{marm}/')[-1][:10] 
     
-    try:
+    if fig_path.parent.stem != dataset_code:
         fig_path = fig_path / dataset_code / 'FigS5'
-    except:
-        fig_path = Path(os.path.dirname(os.path.dirname(os.path.dirname(pkl_file)))) / 'plots' / dataset_code / 'FigS5'
-    os.makedirs(fig_path, exist_ok=True)
+        os.makedirs(fig_path, exist_ok=True)
     
     fig.savefig(fig_path / f'{marm}_{model.replace(" ", "_")}_alpha_sweep.png', bbox_inches='tight', dpi=300)
 

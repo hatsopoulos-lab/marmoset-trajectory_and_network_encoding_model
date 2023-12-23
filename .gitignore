@@ -1,0 +1,6 @@
+# exclude data files
+
+*.h5
+*.nwb
+*.pkl
+*.png

@@ -27,8 +27,9 @@ from pynwb import NWBHDF5IO
 import ndx_pose
 from pathlib import Path
 
-data_path = Path('/project/nicho/projects/dalton/network_encoding_paper/clean_final_analysis/data')
-code_path = Path('/project/nicho/projects/marmosets/code_database/analysis/trajectory_encoding_model/clean_final_analysis/')
+script_directory = Path(os.path.dirname(os.path.abspath(sys.argv[0])))
+code_path = script_directory.parent.parent.parent / 'clean_final_analysis/'
+data_path = script_directory.parent.parent / 'data' / 'original'
 
 sys.path.insert(0, str(code_path))
 from utils import get_interelectrode_distances_by_unit, load_dict_from_hdf5, save_dict_to_hdf5
@@ -48,7 +49,7 @@ if marmcode=='TY':
     modulation_base = nwb_infile.parent / nwb_infile.stem.split('_with_functional_networks')[0]
 elif marmcode=='MG':
     nwb_infile   = data_path / 'MG' / 'MG20230416_1505_mothsAndFree-002_processed_DM_with_functional_networks.nwb'
-    modulation_base = nwb_infile.parent / nwb_infile.stem.split('_with_functional_networks')[0]
+    modulation_base = data_path / 'MG' / nwb_infile.stem.split('_with_functional_networks')[0]
     
 pkl_infile       = nwb_infile.parent / f'{nwb_infile.stem.split("_with_functional_networks")[0]}_{pkl_in_tag}.pkl'
 pkl_outfile      = nwb_infile.parent / f'{nwb_infile.stem.split("_with_functional_networks")[0]}_{pkl_out_tag}.pkl'
@@ -56,9 +57,9 @@ pkl_addstatsfile = nwb_infile.parent / f'{nwb_infile.stem.split("_with_functiona
 
 dataset_code = pkl_infile.stem.split('_')[0]
 if fig_mode == 'paper':
-    plots = nwb_infile.parent.parent.parent / 'plots' / dataset_code
+    plots = script_directory.parent / 'plots' / dataset_code
 elif fig_mode == 'pres':
-    plots = nwb_infile.parent.parent.parent / 'presentation_plots' / dataset_code
+    plots = script_directory.parent / 'presentation_plots' / dataset_code
 
 
 try: 
@@ -808,14 +809,12 @@ def add_in_weight_to_units_df(units_res, FN):
 
 def add_modulation_data_to_units_df(units_res):
 
-    with open(f'{modulation_base}_modulationData.pkl', 'rb') as f:
-        modulation_df = dill.load(f)     
+    modulation_df = pd.read_hdf(f'{modulation_base}_modulationData.h5')
     mask = [True if int(uName) in units_res.unit_name.astype(int).values else False for uName in modulation_df.unit_name.values]
     modulation_df = modulation_df.loc[mask, :]
     modulation_df.reset_index(drop=True, inplace=True)
 
-    with open(f'{modulation_base}_average_firing_rates.pkl', 'rb') as f:
-        average_rates_df = dill.load(f)     
+    average_rates_df = pd.read_hdf(f'{modulation_base}_average_firing_rates.h5')  
 
     for met in modulation_df.columns[:6]:
         units_res[met] = modulation_df[met]

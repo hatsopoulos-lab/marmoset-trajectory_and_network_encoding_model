@@ -3,9 +3,9 @@
 #SBATCH --output=/project/nicho/projects/dalton/network_encoding_paper/clean_final_analysis/job_log_files/create_network_models_TY_%a.out
 #SBATCH --error=/project/nicho/projects/dalton/network_encoding_paper/clean_final_analysis/job_log_files/create_network_models_TY_%a.err
 #SBATCH --time=36:00:00
-#SBATCH --partition=caslake
+#SBATCH --partition=beagle3
 #SBATCH --mem=128G
-#SBATCH --array=0-15
+#SBATCH --array=5,7,13,15
 #SBATCH --account=pi-nicho
 
 #9 11 21 23

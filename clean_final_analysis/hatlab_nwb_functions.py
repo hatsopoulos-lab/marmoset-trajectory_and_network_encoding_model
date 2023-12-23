@@ -145,6 +145,7 @@ def create_nwb_copy_with_external_links_to_acquisition(nwb_infile, nwb_outfile):
     
     raw_io.close()
 
+
 def store_drop_records(timestamps, dropframes_proc_mod, drop_record_folder, exp_name, sNum, epNum):
     
     camPattern = re.compile(r'cam\d{1}')

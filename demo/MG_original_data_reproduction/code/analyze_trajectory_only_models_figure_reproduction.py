@@ -23,15 +23,17 @@ from pynwb import NWBHDF5IO
 import ndx_pose
 from pathlib import Path
 
-data_path = Path('/project/nicho/projects/dalton/network_encoding_paper/clean_final_analysis/data')
-code_path = Path('/project/nicho/projects/marmosets/code_database/analysis/trajectory_encoding_model/clean_final_analysis/')
+script_directory = Path(os.path.dirname(os.path.abspath(sys.argv[0])))
+code_path = script_directory.parent.parent.parent / 'clean_final_analysis/'
+data_path = script_directory.parent.parent / 'data' / 'original'
 
 sys.path.insert(0, str(code_path))
 from hatlab_nwb_functions import get_sorted_units_and_apparatus_kinematics_with_metadata   
-from utils import choose_units_for_model, get_interelectrode_distances_by_unit
+from utils import choose_units_for_model, get_interelectrode_distances_by_unit, load_dict_from_hdf5, save_dict_to_hdf5
 
-marmcode='TY'
-other_marm = 'MG' #None #'MG' #None
+marmcode='MG'
+demo = True
+other_marm = 'TY' #None #'MG' #None
 FN_computed = True
 fig_mode='paper'
 save_kinModels_pkl = False
@@ -71,7 +73,10 @@ elif marmcode=='MG':
         nwb_infile   = data_path / 'MG' / 'MG20230416_1505_mothsAndFree-002_processed_DM_with_functional_networks.nwb'
     else:
         nwb_infile   = data_path / 'MG' / 'MG20230416_1505_mothsAndFree-002_processed_DM.nwb'
-    other_marm_pkl_infile = data_path / 'TY' / f'TY20210211_freeAndMoths-003_resorted_20230612_DM_{pkl_out_tag}.pkl'
+    if demo:
+        other_marm_pkl_infile = data_path / 'MG' / f'MG20230416_1505_mothsAndFree-002_processed_DM_{pkl_out_tag}.pkl'
+    else:
+        other_marm_pkl_infile = data_path / 'TY' / f'TY20210211_freeAndMoths-003_resorted_20230612_DM_{pkl_out_tag}.pkl'
     bad_units_list = [181, 440]
     mua_to_fix = [745, 796]
     units_to_plot = [0, 3, 8, 9]
@@ -93,9 +98,9 @@ pkl_outfile  = nwb_infile.parent / f'{nwb_infile.stem.split("_with_functional_ne
 
 dataset_code = pkl_infile.stem.split('_')[0]
 if fig_mode == 'paper':
-    plots = nwb_infile.parent.parent.parent / 'plots' / dataset_code
+    plots = script_directory.parent / 'plots' / dataset_code
 elif fig_mode == 'pres':
-    plots = nwb_infile.parent.parent.parent / 'presentation_plots' / dataset_code
+    plots = script_directory.parent / 'presentation_plots' / dataset_code
   
 color1     = (  0/255, 141/255, 208/255)
 color2     = (159/255, 206/255, 239/255)
@@ -369,8 +374,10 @@ def plot_boxplot_of_trajectory_model_auc(units_res, other_marm = False, filter_o
         print('Edit the value of "other_marm" at top of script to produce a boxplot')
         return
     
-    with open(other_marm_pkl_infile, 'rb') as f:
-        other_res_dict = dill.load(f)
+    # with open(other_marm_pkl_infile, 'rb') as f:
+    #     other_res_dict = dill.load(f)
+    
+    other_res_dict = load_dict_from_hdf5(other_marm_pkl_infile.with_suffix('.h5'))
     
     other_units_res = other_res_dict[params.best_lead_lag_key]['all_models_summary_results'].copy()
     
@@ -653,7 +660,7 @@ def organize_results_by_model_for_all_lags(fig_mode, per=None, prop=None, paperF
                 filtThresh = per if per is not None else int(prop*100)
                 figname = f'{name}_auc_leadlagsRange_filtered_by_{fig_mode}_{filtThresh}.png'
                 if prop is not None:
-                    fig.savefig(os.path.join(plots, 'Fig3', figname), bbox_inches='tight', dpi=plot_params.dpi)
+                    fig.savefig(os.path.join(plots, paperFig, figname), bbox_inches='tight', dpi=plot_params.dpi)
                 else:
                     fig.savefig(os.path.join(plots, paperFig, figname), bbox_inches='tight', dpi=plot_params.dpi)
                 
@@ -1471,9 +1478,11 @@ def sig_tests(unit_info, x_key, y_key, alternative='greater', unit_info_reduced 
         
 if __name__ == "__main__":
     
-    with open(pkl_infile, 'rb') as f:
-        results_dict = dill.load(f)
-        
+    # with open(pkl_infile, 'rb') as f:
+    #     results_dict = dill.load(f)
+    
+    results_dict = load_dict_from_hdf5(pkl_infile.with_suffix('.h5'), top_level_list=False, convert_4d_array_to_list = True)
+    
     with NWBHDF5IO(nwb_infile, 'r') as io:
         nwb = io.read()
 
@@ -1517,7 +1526,7 @@ if __name__ == "__main__":
     
     # model_results_across_lags = organize_results_by_model_for_all_lags(fig_mode='percentile', per=60)
     # model_results_across_lags = organize_results_by_model_for_all_lags(fig_mode='tuning_prop', prop=0.5)
-    model_results_across_lags = organize_results_by_model_for_all_lags(fig_mode='tuning_prop', prop=0.01/units_res.shape[0], paperFig='Fig2')
+    # model_results_across_lags = organize_results_by_model_for_all_lags(fig_mode='tuning_prop', prop=0.01/units_res.shape[0], paperFig='Fig2')
     model_results_across_lags = organize_results_by_model_for_all_lags(fig_mode='all', paperFig='Fig2')
     
     # model_results_across_lags = compute_mean_model_performance(model_results_across_lags, percent = params.nUnits_percentile, percentile_mode = 'per_lag_set')
@@ -1583,49 +1592,6 @@ if __name__ == "__main__":
     pval=0.05
     print(f'At p = {pval} with bonferroni correction: {(units_res["shuffled_spikes_pval"]<pval/units_res.shape[0]).sum()}/{units_res.shape[0]} tuned to full kinematics, {(units_res["shuffled_traj_pval"]<pval/units_res.shape[0]).sum()}/{units_res.shape[0]} tuned to trajectory details')
     
-    # df.sort_values(by=['Connection', 'Pearson_corr'], inplace=True)
-    
-    # percentile = 95
-    
-    # tmp_df = df.loc[df['Connection'] == '3b-M1', :]
-    # fig, (ax1, ax2) = plt.subplots(2,1, sharex=True, dpi=300)
-    # sns.pointplot(ax=ax1, data=tmp_df, x='x2', y='r_squared')
-    # sns.pointplot(ax=ax2, data=tmp_df, x='x2', y='Wji')
-    # ax1.set_title('3b-M1')
-    # ax2.set_xlabel('M1_x')
-    # plt.show()
-    
-    # tmp_df = df.loc[(df['Connection'] == '3b-M1') & (df['Wji'] > np.percentile(df['Wji'], percentile)), :]
-    # fig, (ax1, ax2) = plt.subplots(2,1, sharex=True, dpi=300)
-    # sns.stripplot(ax=ax1, data=tmp_df, x='x2', y='Pearson_corr', s = 2)
-    # sns.stripplot(ax=ax2, data=tmp_df, x='x2', y='Wji',  s = 2)
-    # ax2.set_ylim(0, 0.04)
-    # ax1.set_title('3b-M1')
-    # ax2.set_xlabel('M1_x')
-    # plt.show()
-
-    # tmp_df = df.loc[df['Connection'] == '3a-M1', :]
-    # fig, (ax1, ax2) = plt.subplots(2,1, sharex=True, dpi=300)
-    # sns.pointplot(ax=ax1, data=tmp_df, x='x2', y='r_squared')
-    # sns.pointplot(ax=ax2, data=tmp_df, x='x2', y='Wji')
-    # ax1.set_title('3a-M1')
-    # ax2.set_xlabel('M1_x')
-    # plt.show()
-    
-    # tmp_df = df.loc[(df['Connection'] == '3a-M1') & (df['Wji'] > np.percentile(df['Wji'], percentile)), :]
-    # fig, (ax1, ax2) = plt.subplots(2,1, sharex=True, dpi=300)
-    # sns.stripplot(ax=ax1, data=tmp_df, x='x2', y='Pearson_corr', s = 2)
-    # sns.stripplot(ax=ax2, data=tmp_df, x='x2', y='Wji',  s = 2)
-    # ax2.set_ylim(0, 0.04)
-    # ax1.set_title('3a-M1')
-    # ax2.set_xlabel('M1_x')
-    # plt.show()
-    
-    # sns.relplot(data = df, x = 'Pearson_corr', y = 'Wji', col='Connection', 
-    #             kind='scatter', s = 20, col_wrap=3, legend=True) 
-    # fig=plt.gcf()
-    # plt.show()
-    # fig.savefig(os.path.join(plots, 'unknown', 'wji_vs_pearson_r_columns_by_connection.png'), bbox_inches='tight', dpi=plot_params.dpi) 
    
     if save_kinModels_pkl:
         with open(pkl_outfile, 'wb') as f:
