@@ -26,6 +26,6 @@ code_list = ['generate_functional_networks_MG_demo.py',
              'regularization_test_results_MG_demo.py']
 
 for code in code_list:
-    print(f'executing "{code}", time is {time.strftime("%c", time.localtime())}')
+    print(f'\n\nexecuting "{code}", time is {time.strftime("%c", time.localtime())}\n\n')
     subprocess.call(['python', str(script_directory / code)])
     
