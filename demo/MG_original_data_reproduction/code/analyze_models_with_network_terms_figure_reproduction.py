@@ -1079,7 +1079,7 @@ def evaluate_effect_of_network_shuffles(lead_lag_key, comparison_model,
     # fig.set_titles('Shuffled {col_name}:' +  f' {comparison_model}, {target_string}')
     # fig.set(ylim=ylim)
     # fig.set_axis_labels('Percent of Weights Shuffled', 'AUC Percent Loss')
-    fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_shuffled_network_auc_loss_summary_figure_{comparison_model}_{target_string}_alpha_pt0{alpha*100}.png'), bbox_inches='tight', dpi=plot_params.dpi)    
+    fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_shuffled_network_auc_loss_summary_figure_{comparison_model}_{target_string}_alpha_pt0{int(alpha*100)}.png'), bbox_inches='tight', dpi=plot_params.dpi)    
 
     return train_auc_df
 
