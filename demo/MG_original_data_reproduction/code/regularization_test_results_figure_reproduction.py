@@ -17,7 +17,10 @@ from scipy.stats import binomtest, ttest_rel
 from pathlib import Path
 from importlib import sys
 
-sys.path.insert(0, '/project/nicho/projects/marmosets/code_database/analysis/trajectory_encoding_model/clean_final_analysis/')
+script_directory = Path(os.path.dirname(os.path.abspath(sys.argv[0])))
+code_path = script_directory.parent.parent.parent / 'clean_final_analysis/'
+
+sys.path.insert(0, code_path)
 from utils import save_dict_to_hdf5, load_dict_from_hdf5
 
 marmscode = 'MG'
