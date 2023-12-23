@@ -38,6 +38,7 @@ marmcode = 'MG'
 lead_lag_key = 'lead_100_lag_300'
 fig_mode='paper'
 pkl_in_tag = 'kinematic_models_summarized'
+show_plots = False
 
 if marmcode == 'TY':
     nwb_infile = data_path / 'TY' / 'TY20210211_freeAndMoths-003_resorted_20230612_DM_with_functional_networks.nwb' 
@@ -359,13 +360,14 @@ def generate_event_raster(units, units_res, reaches, preTime=1, postTime=1,
                          markersize=plot_params.spksamp_markersize, markeredgecolor='black', markerfacecolor='white')
     
     sns.despine(fig=fig0)
-    
-    plt.show()
-    
+
     os.makedirs(plots / paperFig, exist_ok=True)
     fig0.savefig(plots / paperFig / peth_label,  dpi=plot_params.dpi)
    
-    
+    if show_plots:
+        plt.show()
+    else:
+        plt.close()    
 
     # fig, ax = plt.subplots(figsize=figsize, dpi=300)    
     # rasterplot(spiketrains, axes=ax, color='black', s=msize, marker=marker)
@@ -681,7 +683,10 @@ def plot_fig1_trajectory_sampling(units_res, reaches, reachNum = 3, mod_start_ti
     # ax3.set_xticks(     [-0.1, 0,  .1, .15, .3])
     # ax3.set_xticklabels([-100, 0, 100, 150, 300], fontsize = plot_params.tick_fontsize)
         
-    plt.show()
+    if show_plots:
+        plt.show()
+    else:
+        plt.close()  
         
     # fig0.savefig(os.path.join(plot_storage, f'{marmcode}_trajectory_sampling_pos.png'), bbox_inches='tight', dpi=plot_params.dpi)
     # fig1.savefig(os.path.join(plot_storage, f'{marmcode}_velocity_sampling_pos.png'), bbox_inches='tight', dpi=plot_params.dpi)

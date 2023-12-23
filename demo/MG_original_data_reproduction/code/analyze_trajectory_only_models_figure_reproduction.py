@@ -31,6 +31,8 @@ sys.path.insert(0, str(code_path))
 from hatlab_nwb_functions import get_sorted_units_and_apparatus_kinematics_with_metadata   
 from utils import choose_units_for_model, get_interelectrode_distances_by_unit, load_dict_from_hdf5, save_dict_to_hdf5
 
+show_plots = False
+
 marmcode='MG'
 demo = True
 other_marm = 'TY' #None #'MG' #None
@@ -363,10 +365,14 @@ def plot_reach_samples(nReaches = 3, reachset1 = None, reachset2 = None, color1 
         ax.set_xticks([params.apparatus_min_dims[0], params.apparatus_max_dims[0]]),
         ax.set_yticks([params.apparatus_min_dims[1], params.apparatus_max_dims[1]])
         ax.set_zticks([params.apparatus_min_dims[2], params.apparatus_max_dims[2]])
-    plt.show()
         
     fig0.savefig(os.path.join(plots, paperFig, f'{marmcode}_reach_set1_reaches.png'), bbox_inches='tight', dpi=plot_params.dpi)
     fig1.savefig(os.path.join(plots, paperFig, f'{marmcode}_reach_set2_reaches.png'), bbox_inches='tight', dpi=plot_params.dpi)
+
+    if show_plots:
+        plt.show()
+    else:
+        plt.close()  
 
 def plot_boxplot_of_trajectory_model_auc(units_res, other_marm = False, filter_other_marm = False, model_list = None, label_list = None, paperFig = 'unknown'):
     
@@ -506,8 +512,11 @@ def compute_AUC_distribution_statistics(model_keys, unit_idxs, lead_lag_key, plo
                                                                                          np.sum(spike_samples[unit] >= 1, axis=0)[0] / nSpikeSamples))      
                 ax.set_xlim(0.4, 1)
             
+            if show_plots:
                 plt.show()
-        
+            else:
+                plt.close()   
+                
         p_ttest.append(t_stats.pvalue)
         p_signtest.append(sign_test.pvalue)
         prop_signtest.append(sign_test.proportion_estimate)
@@ -652,8 +661,6 @@ def organize_results_by_model_for_all_lags(fig_mode, per=None, prop=None, paperF
             
             ax.legend(bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0)
             
-            plt.show()
-            
             if fig_mode == 'all':
                 fig.savefig(os.path.join(plots, paperFig, f'{name}_auc_leadlagsRange_unfiltered_WITH_LEGEND.png'), bbox_inches='tight', dpi=plot_params.dpi)
             else:
@@ -663,18 +670,25 @@ def organize_results_by_model_for_all_lags(fig_mode, per=None, prop=None, paperF
                     fig.savefig(os.path.join(plots, paperFig, figname), bbox_inches='tight', dpi=plot_params.dpi)
                 else:
                     fig.savefig(os.path.join(plots, paperFig, figname), bbox_inches='tight', dpi=plot_params.dpi)
+            if show_plots:
+                plt.show()
+            else:
+                plt.close()  
                 
             rel = sns.relplot(data=fig_df, x = 'Trajectory center (ms)', y='AUC', hue = 'Trajectory length (ms)', col='cortical_area', 
                               linestyle='-.', kind='line', err_style='bars', errorbar=("se", 1), marker='o', markersize=10, palette='tab10')
             rel.fig.subplots_adjust(top=0.875) # adjust the Figure in rp
             rel.fig.suptitle(plt_title)
-            plt.show()
             
             if fig_mode == 'all':
                 rel.savefig(os.path.join(plots, paperFig, f'{name}_auc_leadlagsRange_unfiltered_sepByArea.png'), bbox_inches='tight', dpi=plot_params.dpi)
             else:
                 rel.savefig(os.path.join(plots, paperFig, f'{figname.split(".png")[0]}_sepByArea.png'), bbox_inches='tight', dpi=plot_params.dpi)
-                
+             
+            if show_plots:
+                plt.show()
+            else:
+                plt.close()  
         results.append(tmp_results)
     
     model_results_across_lags = {'model_name'    : model_names,
@@ -765,12 +779,13 @@ def plot_mean_traj_center_by_area(units_res, weighted_mean = True, weightsKey='%
     
     ax.set_xlabel('Cortical Area', fontsize = plot_params.axis_fontsize)
     ax.set_ylabel('Trajectory Center (ms)', fontsize = plot_params.axis_fontsize)
-    
-    plt.show()
-    
+        
     fig.savefig(os.path.join(plots, 'brain_area_optimal_lead_lag_final_output.png'), bbox_inches='tight', dpi=plot_params.dpi) 
     
-
+    if show_plots:
+        plt.show()
+    else:
+        plt.close()  
         
 def plot_sweep_over_lead_lag(model_results_across_lags, filter_key):
 
@@ -804,8 +819,11 @@ def plot_sweep_over_lead_lag(model_results_across_lags, filter_key):
     
     fig, ax = plt.subplots(figsize=(6.5, 5), dpi = plot_params.dpi)
     sns.pointplot(data=traj_mean_performance, ax=ax, x = 'Trajectory Center (ms)', hue='Trajectory Length (ms)')
-    plt.show()
-    
+    if show_plots:
+        plt.show()
+    else:
+        plt.close()  
+        
     best_ll_idx = np.where(traj_mean_performance.index == params.best_lead_lag_key)[0]
     leads = [re.findall(re.compile('lead_[0-9]{1,3}'), lead_lag_key)[0].split('_')[-1] for lead_lag_key in traj_mean_performance.index] 
     lags  = [re.findall(re.compile('lag_[0-9]{1,3}' ), lead_lag_key)[0].split('_')[-1] for lead_lag_key in traj_mean_performance.index] 
@@ -862,8 +880,11 @@ def plot_sweep_over_lead_lag(model_results_across_lags, filter_key):
     # ax.spines['bottom'].set_linewidth(plot_params.axis_linewidth)
     # ax.spines['left'  ].set_linewidth(plot_params.axis_linewidth)
     
-    plt.show()
-    
+    if show_plots:
+        plt.show()
+    else:
+        plt.close() 
+        
     if filter_key is None:
         fig.savefig(os.path.join(plots, 'model_auc_over_leadlags_unfiltered.png'), bbox_inches='tight', dpi=plot_params.dpi)
     else:
@@ -931,9 +952,13 @@ def plot_model_auc_comparison(units_res, x_key, y_key, minauc = 0.5, maxauc=1.0,
     ax.set_title('')
 
     ax.grid(False)
-    plt.show()
     
     # fig.savefig(os.path.join(plots, paperFig, plot_name), bbox_inches='tight', dpi=plot_params.dpi)
+
+    if show_plots:
+        plt.show()
+    else:
+        plt.close()  
 
 def compute_and_analyze_pathlets(lead_lag_key, model, numplots, unitsToPlot=None, all_units_plot_subset = None, axlims=None):
     
@@ -1086,8 +1111,12 @@ def plot_pathlet(posTraj_mean, posTraj_samples, lead_lag_key, model, avgPos_mean
                 ax.set_zlabel('', fontsize = plot_params.axis_fontsize)
                 
                 ax.view_init(params.view_angle[0], params.view_angle[1])
-                plt.show()                
                 fig.savefig(os.path.join(plots, 'Fig2', f'{figname}pathlets.png' % unit), bbox_inches='tight', dpi=plot_params.dpi)
+
+                if show_plots:
+                    plt.show()
+                else:
+                    plt.close()  
                 
                 fig = plt.figure(figsize = plot_params.preferred_traj_figsize)
                 ax = plt.axes(projection='3d')
@@ -1118,9 +1147,13 @@ def plot_pathlet(posTraj_mean, posTraj_samples, lead_lag_key, model, avgPos_mean
         # ax.w_zaxis.line.set_linewidth(plot_params.axis_linewidth)
     
         ax.view_init(params.view_angle[0], params.view_angle[1])
-        plt.show()
         
         fig.savefig(os.path.join(plots, 'Fig2', f'{figname}pathlets.png'), bbox_inches='tight', dpi=plot_params.dpi)
+
+        if show_plots:
+            plt.show()
+        else:
+            plt.close()  
     
     if unit_selector == 'max':
         
@@ -1183,13 +1216,15 @@ def plot_pathlet(posTraj_mean, posTraj_samples, lead_lag_key, model, avgPos_mean
         # ax2.w_yaxis.line.set_color('black')
         # ax2.w_zaxis.line.set_color('black')
         ax2.view_init(params.view_angle[0], params.view_angle[1])
-        
-        plt.show() 
-        
+                
         figname_mod = 'all' if all_units_plot_subset is None else pathlet_subset 
         fig1.savefig(os.path.join(plots, 'FigS2', f'{figname_mod}_units_pathlets_noPos.png'), bbox_inches='tight', dpi=plot_params.dpi)
         # fig2.savefig(os.path.join(plots, 'all_units_pathlets_withPos.png'), bbox_inches='tight', dpi=plot_params.dpi)
 
+        if show_plots:
+            plt.show()
+        else:
+            plt.close()  
 
     if unitsToPlot is not None: 
         print(traj_auc[unitsToPlot[0]])
@@ -1273,10 +1308,13 @@ def compute_and_analyze_trajectory_correlations(units_res, posTraj_mean, velTraj
                 # ax.w_zaxis.line.set_color('black')
                 ax.view_init(params.view_angle[0], params.view_angle[1])
                 ax.set_title(f'Units {pair[0]} and {pair[1]}, r = {round(corr, 2)}')
-                plt.show()
                 
                 # fig.savefig(os.path.join(plots, 'unknown', f'corr_pair_pathlets_{pair[0]}_{pair[1]}.png'), bbox_inches='tight', dpi=plot_params.dpi)
 
+                if show_plots:
+                    plt.show()
+                else:
+                    plt.close()  
     
     if FN is None:
         print('Load computed FNs to see correlations of pathlets vs other variables')
@@ -1313,28 +1351,43 @@ def compute_and_analyze_trajectory_correlations(units_res, posTraj_mean, velTraj
 
     fig, ax = plt.subplots(figsize = (4, 4), dpi = plot_params.dpi)
     sns.scatterplot(ax = ax, data = df, x = 'Pearson_corr', y = 'Wji', s = 20, legend=True) 
-    plt.show()
     # fig.savefig(os.path.join(plots, 'Fig4', 'wji_vs_pearson_r.png'), bbox_inches='tight', dpi=plot_params.dpi)
+    if show_plots:
+        plt.show()
+    else:
+        plt.close()  
     
     fig, ax = plt.subplots(figsize = (4, 4), dpi = plot_params.dpi)
     sns.scatterplot(ax = ax, data = df, x = 'r_squared', y = 'Wji', s = 20, legend=True) 
-    plt.show()
+    if show_plots:
+        plt.show()
+    else:
+        plt.close()  
 
     fig, ax = plt.subplots(figsize = (4, 4), dpi = plot_params.dpi)
     sns.pointplot(ax=ax, data = df, x = 'Connection', y = 'Pearson_corr', color='black', errorbar=('ci', 99))
-    plt.show()
     # fig.savefig(os.path.join(plots, 'unknown', 'pearson_r_vs_connection.png'), bbox_inches='tight', dpi=plot_params.dpi)
+    if show_plots:
+        plt.show()
+    else:
+        plt.close()  
 
     fig, ax = plt.subplots(figsize = (4, 4), dpi = plot_params.dpi)
     sns.pointplot(ax=ax, data = df, x = 'Connection', y = 'r_squared', color='black', errorbar='se')
-    plt.show()
     # fig.savefig(os.path.join(plots, 'unknown', 'pearson_rsquare_vs_connection.png'), bbox_inches='tight', dpi=plot_params.dpi)
-
+    if show_plots:
+        plt.show()
+    else:
+        plt.close() 
+        
     fig, ax = plt.subplots(figsize = (4, 4), dpi = plot_params.dpi)
     sns.pointplot(ax=ax, data = df, x = 'Connection', y = 'Wji', color='black', errorbar='se')
-    plt.show()
     # fig.savefig(os.path.join(plots, 'unknown', 'wji_vs_connection.png'), bbox_inches='tight', dpi=plot_params.dpi)
-
+    if show_plots:
+        plt.show()
+    else:
+        plt.close() 
+        
     fig, ax = plt.subplots(figsize = plot_params.pearsonr_histsize, dpi = plot_params.dpi)
     sns.histplot(ax=ax, data = df, x = 'Pearson_corr', color='black', kde=True)
     sns.despine(ax=ax, left=True)
@@ -1348,9 +1401,12 @@ def compute_and_analyze_trajectory_correlations(units_res, posTraj_mean, velTraj
     ax.set_yticklabels('', fontsize = plot_params.axis_fontsize)
     ax.set_ylim(0, 1450)
     
-    plt.show()
     fig.savefig(os.path.join(plots, 'Fig2', 'pearson_r_histogram.png'), bbox_inches='tight', dpi=plot_params.dpi)
-    
+    if show_plots:
+        plt.show()
+    else:
+        plt.close() 
+        
     return df
             
 def evaluate_lead_lag_by_model_coefficients(lead_lag_key = 'lead_200_lag_200', kin_type = 'traj_avgPos', mode='average', proportion_thresh=0.99):
@@ -1434,8 +1490,11 @@ def evaluate_lead_lag_by_model_coefficients(lead_lag_key = 'lead_200_lag_200', k
         sns.histplot(ax = ax[1], data = diff_magnitude_df.loc[diff_magnitude_df['cortical_area'] == '3a'], x='diff', hue='cortical_area', palette={'3a': 'g'}, bins = np.linspace(-0.025, 0.025, 25))
         sns.histplot(ax = ax[2], data = diff_magnitude_df.loc[diff_magnitude_df['cortical_area'] == '3b'], x='diff', hue='cortical_area', palette={'3b': 'm'}, bins = np.linspace(-0.025, 0.025, 25))
         ax[0].set_xlim(-0.025, 0.025)
-        plt.show()
-    
+        if show_plots:
+            plt.show()
+        else:
+            plt.close()   
+            
     fig = sns.catplot (data = significant_diff_df, x='label', y='norm', hue='unit', col='cortical_area', kind='point', legend=False, errorbar=('ci', 99))
     for ax, area in zip(fig.axes[0], ['M1', '3a', '3b']): 
         zordered_lines = ax.lines
