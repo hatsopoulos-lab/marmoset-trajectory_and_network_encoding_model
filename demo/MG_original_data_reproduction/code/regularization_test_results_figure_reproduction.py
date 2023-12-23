@@ -145,7 +145,7 @@ for model, marm in itertools.product(['Full Kinematics', 'Kinematics + reachFN']
     ax.set_xlabel('Regularization Penalty (alpha)')
     sns.despine(ax=ax)
     
-    pkl_file = [f for f in pkl_infiles if f'data/original/{marm}/' in str(f)][0]
+    pkl_file = [f for f in pkl_infiles if f'data/original/{marm}/' in f.as_posix()][0]
     dataset_code = str(pkl_file).split(f'data/original/{marm}/')[-1][:10] 
     
     if fig_path.parent.stem != dataset_code:
