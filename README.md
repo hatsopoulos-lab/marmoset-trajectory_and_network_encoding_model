@@ -30,11 +30,13 @@ This code has been tested in a fresh conda environment using python>=3.11.
 
 # Installation
 
-1.  Create conda environment and install dependencies
+1.  Create conda environment and install dependencies (~5-10 minutes).
 
-      conda create -n paper_demo python=3.11 numpy pandas pytables scikit-learn seaborn 
-      conda activate paper_demo
-      pip install -U dill neo elephant viziphant statsmodels probeinterface pynwb ndx-pose
+    conda create -n marm_encoding_model python=3.11 numpy pandas pytables scikit-learn seaborn 
+    
+    conda activate marm_encoding_model
+    
+    pip install -U dill neo elephant viziphant statsmodels probeinterface pynwb ndx-pose
     
 2.  Download or clone this repository.
 
@@ -46,13 +48,17 @@ For other users: the nwb file for running the demo is located at **Insert DANDI 
 
 # Demo the code
 
+This should take ~XX minutes on a standard computer.
+
 Open the in a text editor or python IDE: [/demo/MG_subset_demo/code/run_demo.py](/demo/MG_subset_demo/code/run_demo.py)
 
 This code will execute all the scripts in order and generate plots, which will populate in "marmoset-trajectory_and_network_encoding_model/demo/MG_subset_demo/plots". You can also open and run each code independently, in the order prescribed in run_demo.py.
 
 The demo analyzes all units and reach samples available in the MG dataset. However, only one lead/lag set of [-100, +300]ms is analyzed and only 5 train/test splits are completed (instead of the full 500). A few results that can't be replicated with only 5 train/test splits are disabled.
 
-# Reproduce MG data
+# Reproduce MG data 
+
+This should take less than 5 minutes on a standard computer.
 
 Open in a text editor or python IDE: [/demo/MG_original_data_reproduction/code/reproduce_figures.py](/demo/MG_original_data_reproduction/code/reproduce_figures.py)
 
