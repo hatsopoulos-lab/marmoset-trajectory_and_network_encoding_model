@@ -144,11 +144,11 @@ for model, marm in itertools.product(['Full Kinematics', 'Kinematics + reachFN']
     sns.despine(ax=ax)
     
     pkl_file = [f for f in pkl_infiles if f'data/demo/{marm}/' in f.as_posix()][0]
-    dataset_code = str(pkl_file).split(f'data/demo/{marm}/')[-1][:10] 
+    dataset_code = pkl_file.as_posix().split(f'data/demo/{marm}/')[-1][:10] 
     
     if fig_path.parent.stem != dataset_code:
         fig_path = fig_path / dataset_code / 'FigS5'
-        os.makedirs(fig_path, exist_ok=True)
+        fig_path.mkdir(parents=True, exist_ok=True)
     
     fig.savefig(fig_path / f'{marm}_{model.replace(" ", "_")}_alpha_sweep.png', bbox_inches='tight', dpi=300)
 

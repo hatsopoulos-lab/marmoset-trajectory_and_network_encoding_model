@@ -27,8 +27,7 @@ marmscode = 'MG'
 filter_untuned = False
 show_plots=False
 
-script_directory = Path(os.path.dirname(os.path.abspath(sys.argv[0])))
-code_path = script_directory.parent.parent.parent / 'clean_final_analysis/'
+
 data_path = script_directory.parent.parent / 'data' / 'original'
 fig_path = script_directory.parent / 'plots' 
 
@@ -146,11 +145,11 @@ for model, marm in itertools.product(['Full Kinematics', 'Kinematics + reachFN']
     sns.despine(ax=ax)
     
     pkl_file = [f for f in pkl_infiles if f'data/original/{marm}/' in f.as_posix()][0]
-    dataset_code = str(pkl_file).split(f'data/original/{marm}/')[-1][:10] 
+    dataset_code = pkl_file.as_posix().split(f'data/original/{marm}/')[-1][:10] 
     
     if fig_path.parent.stem != dataset_code:
         fig_path = fig_path / dataset_code / 'FigS5'
-        os.makedirs(fig_path, exist_ok=True)
+        fig_path.mkdir(parents=True, exist_ok=True)
     
     fig.savefig(fig_path / f'{marm}_{model.replace(" ", "_")}_alpha_sweep.png', bbox_inches='tight', dpi=300)
 
