@@ -1,7 +1,27 @@
 # marmoset-trajectory_and_network_encoding_model
 
+# Overview
 Contains code for analysis and visualization of data for a manuscript in final stages of preparation. Some of the code 
 is complete, but some requires cleanup prior to publishing. 
+
+# Software Requirements
+This code has been tested in a fresh conda environment using python>=3.11.
+## Python dependencies
+    
+    numpy
+    pandas
+    pytables
+    pynwb
+    elephant
+    viziphant
+    astropy
+
+# Installation
+
+    conda create -n paper_demo python=3.11 numpy pandas pytables
+    
+
+
 
 ### Basic Steps
 1.	Generate functional networks and peri-event time histograms to assess unit modulation.
