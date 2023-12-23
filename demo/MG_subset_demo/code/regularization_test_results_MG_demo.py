@@ -20,7 +20,7 @@ from importlib import sys
 script_directory = Path(os.path.dirname(os.path.abspath(sys.argv[0])))
 code_path = script_directory.parent.parent.parent / 'clean_final_analysis/'
 
-sys.path.insert(0, code_path)
+sys.path.insert(0, str(code_path))
 from utils import save_dict_to_hdf5, load_dict_from_hdf5
 
 marmscode = 'MG'
