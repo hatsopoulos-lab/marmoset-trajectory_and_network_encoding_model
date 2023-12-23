@@ -15,7 +15,7 @@ import time
 script_directory = Path(os.path.dirname(os.path.abspath(sys.argv[0])))
 
 code_list = ['generate_functional_networks_MG_demo.py',
-             'check_movement_peth_by_unit_MG_demo.py' 
+             'check_movement_peth_by_unit_MG_demo.py', 
              'collect_trajectory_samples_MG_demo.py',
              'create_trajectory_models_MG_demo.py', 
              'analyze_trajectory_only_models_MG_demo.py',

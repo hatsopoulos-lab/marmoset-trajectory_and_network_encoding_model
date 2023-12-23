@@ -28,19 +28,17 @@ This code has been tested in a fresh conda environment using python>=3.11.
     probeinterface
     
 
-# Installation
+# Installation (10-30 minutes)
 
-1.  Create conda environment and install dependencies (~5-10 minutes).
+Create conda environment and install dependencies.
 
     conda create -n marm_encoding_model python=3.11 numpy pandas pytables scikit-learn seaborn 
-    
     conda activate marm_encoding_model
-    
     pip install -U dill neo elephant viziphant statsmodels probeinterface pynwb ndx-pose
     
-2.  Download or clone this repository.
+Download or clone this repository.
 
-3.  Download sample data and place it in "USERPATH/marmoset-trajectory_and_network_encoding_model/demo/data". Within "data" you should see the folders called "original" and "demo".
+Download sample data and place it in "USERPATH/marmoset-trajectory_and_network_encoding_model/demo/data". Within "data" you should see the folders called "original" and "demo".
 
 For reviewers: data will be supplied via a link from the editor.
 
