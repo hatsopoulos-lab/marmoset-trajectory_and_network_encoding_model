@@ -40,6 +40,7 @@ fig_mode='paper'
 save_kinModels_pkl = False
 skip_network_permutations = False
 demo = True
+show_plots=False
 
 pkl_in_tag  = 'network_models_created'
 pkl_out_tag = 'network_models_summarized' 
@@ -405,7 +406,10 @@ def plot_result_on_channel_map(units_res, jitter_radius = .15, hue_key='W_in',
     #                      scatter_units_res['scatter_x'], scatter_units_res['scatter_y']):
     #     print((txt, x, y))
     #     ax.annotate('%d' % txt, (x, y))
-    plt.show()
+    if show_plots:
+        plt.show()
+    else:
+        plt.close()
     
     fig_base = os.path.join(plots, paperFig)
     fig.savefig(os.path.join(fig_base, f'{title}_{hue_key}_on_array_map.png'), bbox_inches='tight', dpi=plot_params.dpi)    
@@ -527,7 +531,10 @@ def plot_model_auc_comparison(units_res, x_key, y_key, minauc = 0.5, maxauc = 1.
             text_y = 0.95*maxauc
         ax.text(minauc+(maxauc-minauc)*0.5, text_y, text, horizontalalignment='center', fontsize = plot_params.tick_fontsize)
     # ax.legend(bbox_to_anchor=(1.5, 1.5), loc='center left', borderaxespad=0)
-    plt.show()
+    if show_plots:
+        plt.show()
+    else:
+        plt.close()
     
     if paperFig == 'unknown':
         fig_base = os.path.join(plots, paperFig, 'auc_comparison')
@@ -702,14 +709,20 @@ def plot_functional_networks(FN, units_res, FN_key = 'split_reach_FNs', cmin=Non
         ax.set_title(title, fontsize=plot_params.axis_fontsize)
         ax.set_ylabel('Target unit', fontsize=plot_params.axis_fontsize)
         ax.set_xlabel('Source unit' , fontsize=plot_params.axis_fontsize)
-        plt.show()
+        if show_plots:
+            plt.show()
+        else:
+            plt.close()
         
         title = title.replace('\n', '_')
         fig.savefig(os.path.join(plots, paperFig, 
                                  f'{marmcode}_functional_network_{title.replace(" ", "_").replace("-", "_")}.png'), bbox_inches='tight', dpi=plot_params.dpi)
     
         plt.hist(network_copy.flatten(), bins = 30)
-        plt.show()
+        if show_plots:
+            plt.show()
+        else:
+            plt.close()
         
         FNs_to_save.append(network_copy)
         
@@ -769,7 +782,10 @@ def plot_weights_versus_interelectrode_distances(FN, spontaneous_FN, electrode_d
     #           title_fontsize = plot_params.axis_fontsize,
     #           fontsize = plot_params.tick_fontsize)
     sns.despine(ax=ax)
-    plt.show()
+    if show_plots:
+        plt.show()
+    else:
+        plt.close()
         
     fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_weights_by_distance.png'), bbox_inches='tight', dpi=plot_params.dpi)
     
@@ -1135,7 +1151,10 @@ def plot_modulation_for_subsets(auc_df, paperFig = 'unknown', figname_mod = '', 
             sns.despine(ax=ax)
             ax.set_xlabel(xlabel, fontsize=plot_params.axis_fontsize)
             ax.text(tmp_df[metric].max()*0.75, ax.get_ylim()[-1]*0.6, f'p={pval}', horizontalalignment='left', fontsize = plot_params.tick_fontsize)
-            plt.show()        
+            if show_plots:
+                plt.show()
+            else:
+                plt.close()        
             fig.savefig(os.path.join(plot_save_dir, f'{figname_mod[1:]}_{marmcode}_distribution_{metric}_histogram_highlighted_with_reachspecific{figname_mod}.png'), bbox_inches='tight', dpi=plot_params.dpi)    
 
 
@@ -1152,7 +1171,10 @@ def plot_trajectory_correlation_and_auc_distributions_for_subsets(auc_df, weight
     ax.set_yticks([0, 1])
     sns.despine(ax=ax)
     ax.set_xlabel('Full kinematics AUC', fontsize=plot_params.axis_fontsize)
-    plt.show()        
+    if show_plots:
+        plt.show()
+    else:
+        plt.close()        
     fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_cumDist_KinAUC_huekey_UnitsSubset{figname_mod}.png'), bbox_inches='tight', dpi=plot_params.dpi)    
 
     #---------------------------------------------------------------------------------
@@ -1173,7 +1195,10 @@ def plot_trajectory_correlation_and_auc_distributions_for_subsets(auc_df, weight
     ax.legend().remove()
     sns.despine(ax=ax)
     ax.set_xlabel('Full kinematics AUC', fontsize=plot_params.axis_fontsize)
-    plt.show()        
+    if show_plots:
+        plt.show()
+    else:
+        plt.close()        
     fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_distribution_KinAUC_huekey_UnitsSubset{figname_mod}.png'), bbox_inches='tight', dpi=plot_params.dpi)    
 
     #---------------------------------------------------------------------------------    
@@ -1194,7 +1219,10 @@ def plot_trajectory_correlation_and_auc_distributions_for_subsets(auc_df, weight
     ax.legend().remove()
     ax.set_xlabel('Preferred trajectory\ncorrelation')
     sns.despine(ax=ax)
-    plt.show()    
+    if show_plots:
+        plt.show()
+    else:
+        plt.close()    
     fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_distribution_pearson_r_huekey_UnitsSubset{figname_mod}.png'), bbox_inches='tight', dpi=plot_params.dpi)    
     
     #---------------------------------------------------------------------------------
@@ -1215,7 +1243,10 @@ def plot_trajectory_correlation_and_auc_distributions_for_subsets(auc_df, weight
                 x='pearson_r_squared', hue='Units Subset', common_norm=False, bw_adjust=0.4, cumulative=False, hue_order=hue_order_FN)
     ax.legend().remove()
     sns.despine(ax=ax)
-    plt.show()    
+    if show_plots:
+        plt.show()
+    else:
+        plt.close()    
     fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_distribution_pearson_r_squared_huekey_UnitsSubset{figname_mod}.png'), bbox_inches='tight', dpi=plot_params.dpi)    
 
 def plot_wji_distributions_for_subsets(weights_df, paperFig = 'unknown', figname_mod = '', hue_order_FN=None, palette=None):
@@ -1234,7 +1265,10 @@ def plot_wji_distributions_for_subsets(weights_df, paperFig = 'unknown', figname
         ax.set_xlabel('$W_{{ji}}$')
         ax.set_yticks([0, 1])
         sns.despine(ax=ax)
-        plt.show()
+        if show_plots:
+            plt.show()
+        else:
+            plt.close()
         fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_cumDist_Wji_{sub_basis}_huekey_FNkey{figname_mod}.png'), bbox_inches='tight', dpi=plot_params.dpi)    
 
         med_out = median_test(weights_df.loc[(weights_df['Units Subset'] == sub_basis) & (weights_df['FN_key'] == 'reachFN1') , 'Wji'], 
@@ -1258,7 +1292,10 @@ def plot_wji_distributions_for_subsets(weights_df, paperFig = 'unknown', figname
         ax.set_xlabel('$W_{{ji}}$')
         sns.despine(ax=ax)
         ax.set_yticks([0, 1])
-        plt.show()
+        if show_plots:
+            plt.show()
+        else:
+            plt.close()
         fig.savefig(os.path.join(plots, paperFig, f'{marmcode}cumDist_Wji_{FN_key}_huekey_UnitsSubset{figname_mod}.png'), bbox_inches='tight', dpi=plot_params.dpi)    
 
         med_out = median_test(weights_df.loc[(weights_df['Units Subset'] == 'Reach-Specific') & (weights_df['FN_key'] == FN_key) , 'Wji'], 
@@ -1287,7 +1324,10 @@ def plot_wji_distributions_for_subsets(weights_df, paperFig = 'unknown', figname
                 sns.despine(ax=ax)
                 ax.set_yticks([0, 1])
                 ax.set_xlabel(w_diff_label)
-                plt.show()
+                if show_plots:
+                    plt.show()
+                else:
+                    plt.close()
                 fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_{w_diff_key}_cumulative_dist_{FN_key}_minus_spont{figname_mod}.png'), bbox_inches='tight', dpi=plot_params.dpi)
                 med_out = median_test(weights_df.loc[(weights_df['Units Subset'] == 'Reach-Specific') & (weights_df['FN_key'] == FN_key), w_diff_key], 
                                       weights_df.loc[(weights_df['Units Subset'] == 'Non-Specific')   & (weights_df['FN_key'] == FN_key), w_diff_key])
@@ -1539,7 +1579,10 @@ def feature_correlation_plot(units_res, x_key, y_key, hue_key=None, col_key=None
 
         plot_name = f'{marmcode}_feature_correlation_{x_key}_{y_key}.png'
     
-    plt.show()
+    if show_plots:
+        plt.show()
+    else:
+        plt.close()
     fig.savefig(os.path.join(plots, paperFig, plot_name), bbox_inches='tight', dpi=plot_params.dpi)
 
 def compute_performance_difference_by_unit(units_res, model_1, model_2):
@@ -1602,7 +1645,10 @@ def find_reach_specific_group(diff_df, model_1, model_2, paperFig = 'FigS5'):
     
     sns.despine(ax=ax)
     
-    plt.show()
+    if show_plots:
+        plt.show()
+    else:
+        plt.close()
 
     fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_classifier_selection.png'), bbox_inches='tight', dpi=plot_params.dpi)
 
@@ -1743,7 +1789,10 @@ def plot_pathlet(posTraj_mean, posTraj_samples, lead_lag_key, model, avgPos_mean
         ax.w_yaxis.line.set_color('black')
         ax.w_zaxis.line.set_color('black')
         ax.view_init(28, 148)
-        plt.show()
+        if show_plots:
+            plt.show()
+        else:
+            plt.close()
         
         fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_unit_%d_pathlet.png' % unit), bbox_inches='tight', dpi=plot_params.dpi)
 
@@ -1791,7 +1840,10 @@ def plot_pathlet(posTraj_mean, posTraj_samples, lead_lag_key, model, avgPos_mean
             ax2.w_yaxis.line.set_color('black')
             ax2.w_zaxis.line.set_color('black')
             ax2.view_init(28, 148)
-        plt.show() 
+        if show_plots:
+            plt.show()
+        else:
+            plt.close() 
         
         # fig1.savefig(os.path.join(plots, 'all_units_pathlets_noPos.png'), bbox_inches='tight', dpi=plot_params.dpi)
         # fig2.savefig(os.path.join(plots, 'all_units_pathlets_withPos.png'), bbox_inches='tight', dpi=plot_params.dpi)
@@ -1894,7 +1946,10 @@ def compute_and_analyze_trajectory_correlations(units_res, posTraj_mean, velTraj
                 ax.w_zaxis.line.set_color('black')
                 ax.view_init(28, 148)
                 ax.set_title(f'Units {pair[0]} and {pair[1]}, r = {round(corr, 2)}')
-                plt.show()
+                if show_plots:
+                    plt.show()
+                else:
+                    plt.close()
                 
                 fig.savefig(os.path.join(plots, 'unknown', f'{marmcode}_corr_pair_pathlets_{pair[0]}_{pair[1]}.png'), bbox_inches='tight', dpi=plot_params.dpi)
 
@@ -1933,7 +1988,10 @@ def compute_and_analyze_trajectory_correlations(units_res, posTraj_mean, velTraj
     ax.set_ylabel('$W_{{ji}}$')  
     # ax.tick_params(width=plot_params.tick_width, length = plot_params.tick_length*2, labelsize = plot_params.tick_fontsize)
     sns.despine(ax=ax)
-    plt.show()
+    if show_plots:
+        plt.show()
+    else:
+        plt.close()
     fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_wji_vs_pearson_r.png'), bbox_inches='tight', dpi=plot_params.dpi)
     
     return df
@@ -1972,7 +2030,10 @@ def plot_FN_differences(FN, spontaneous_FN, reach_specific_reachFNs, reach_speci
     sns.despine(ax=ax)
     ax.set_yticks([0, 1])
     ax.set_xlabel('|$W_{{ji}}$ (reachFN) - $W_{{ji}}$ (spontaneousFN)|')
-    plt.show()
+    if show_plots:
+        plt.show()
+    else:
+        plt.close()
     fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_w_diff_cumulative_dist_reachFN1_minus_spont'), bbox_inches='tight', dpi=plot_params.dpi)
     med_out = median_test(diff_df.loc[(diff_df['Units Subset'] == 'Reach-Specific') & (diff_df['Reach Set'] == 'reachFN1') , 'w_diff'], 
                           diff_df.loc[(diff_df['Units Subset'] == 'Non-Specific')   & (diff_df['Reach Set'] == 'reachFN1') , 'w_diff'])
@@ -1998,7 +2059,10 @@ def plot_FN_differences(FN, spontaneous_FN, reach_specific_reachFNs, reach_speci
     ax.set_yticks([0, 1])
     ax.set_xlabel('|$W_{{ji}}$ (reachFN) - $W_{{ji}}$ (spontaneousFN)|')
     sns.despine(ax=ax)
-    plt.show()
+    if show_plots:
+        plt.show()
+    else:
+        plt.close()
     fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_w_diff_cumulative_dist_reachFN2_minus_spont'), bbox_inches='tight', dpi=plot_params.dpi)
     med_out = median_test(diff_df.loc[(diff_df['Units Subset'] == 'Reach-Specific') & (diff_df['Reach Set'] == 'reachFN2') , 'w_diff'], 
                           diff_df.loc[(diff_df['Units Subset'] == 'Non-Specific')   & (diff_df['Reach Set'] == 'reachFN2') , 'w_diff'])

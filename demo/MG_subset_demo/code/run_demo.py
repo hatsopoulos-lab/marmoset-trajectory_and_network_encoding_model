@@ -19,10 +19,10 @@ code_list = ['generate_functional_networks_MG_demo.py',
              'collect_trajectory_samples_MG_demo.py',
              'create_trajectory_models_MG_demo.py', 
              'analyze_trajectory_only_models_MG_demo.py',
-             'create_network_models_MG_demo.py'
+             'create_network_models_MG_demo.py',
              'analyze_models_with_network_terms_MG_demo.py',
              'reach_and_spontaneous_rasters_for_fig1_MG_demo.py',
-             'regularization_sweep_MG_demo.py'
+             'regularization_sweep_MG_demo.py',
              'regularization_test_results_MG_demo.py']
 
 for code in code_list:

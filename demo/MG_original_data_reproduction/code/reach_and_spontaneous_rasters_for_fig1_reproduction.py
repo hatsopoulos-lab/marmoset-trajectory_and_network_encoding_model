@@ -35,6 +35,7 @@ from hatlab_nwb_functions import get_sorted_units_and_apparatus_kinematics_with_
 from utils import get_interelectrode_distances_by_unit, load_dict_from_hdf5, save_dict_to_hdf5
 
 marmcode = 'MG'
+show_plots=False
 lead_lag_key = 'lead_100_lag_300'
 fig_mode='paper'
 pkl_in_tag = 'kinematic_models_summarized'
@@ -360,7 +361,10 @@ def generate_event_raster(units, units_res, reaches, preTime=1, postTime=1,
     
     sns.despine(fig=fig0)
     
-    plt.show()
+    if show_plots:
+        plt.show()
+    else:
+        plt.close()
     
     os.makedirs(plots / paperFig, exist_ok=True)
     fig0.savefig(plots / paperFig / peth_label,  dpi=plot_params.dpi)
@@ -681,7 +685,10 @@ def plot_fig1_trajectory_sampling(units_res, reaches, reachNum = 3, mod_start_ti
     # ax3.set_xticks(     [-0.1, 0,  .1, .15, .3])
     # ax3.set_xticklabels([-100, 0, 100, 150, 300], fontsize = plot_params.tick_fontsize)
         
-    plt.show()
+    if show_plots:
+        plt.show()
+    else:
+        plt.close()
         
     # fig0.savefig(os.path.join(plot_storage, f'{marmcode}_trajectory_sampling_pos.png'), bbox_inches='tight', dpi=plot_params.dpi)
     # fig1.savefig(os.path.join(plot_storage, f'{marmcode}_velocity_sampling_pos.png'), bbox_inches='tight', dpi=plot_params.dpi)

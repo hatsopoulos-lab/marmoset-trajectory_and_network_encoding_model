@@ -32,6 +32,7 @@ from utils import get_interelectrode_distances_by_unit, load_dict_from_hdf5, sav
 pkl_in_tag  = 'kinematic_models_summarized'
 pkl_out_tag = 'network_models_created' 
 
+show_plots=False
 marmcode = 'MG'
 debugging = False
 demo = True

@@ -37,6 +37,7 @@ marmcode='MG'
 
 debugging = False
 demo = True
+show_plots=False
 
 if marmcode=='TY':
     nwb_infile   = data_path / 'TY' / 'TY20210211_freeAndMoths-003_resorted_20230612_DM.nwb'
@@ -584,7 +585,10 @@ def compute_trajectories_fft(traj_samples, srate = 150):
         axs[dim].plot(fft_freq, 2.0/traj_reshaped.shape[0] * np.abs(traj_fft[:, dim]))
         axs[dim].set_title(dimlabel)
     
-    plt.show()
+    if show_plots:
+        plt.show()
+    else:
+        plt.close()
     
 if __name__ == "__main__":
     

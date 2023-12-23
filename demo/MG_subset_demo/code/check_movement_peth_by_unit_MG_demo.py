@@ -29,6 +29,7 @@ sys.path.insert(0, str(code_path))
 from hatlab_nwb_functions import remove_duplicate_spikes_from_good_single_units   
 
 marmcode = 'MG'
+show_plots=False
 
 if marmcode == 'TY':
     nwb_analysis_file = data_path / 'TY' / 'TY20210211_freeAndMoths-003_resorted_20230612_DM.nwb'
@@ -195,7 +196,10 @@ def generate_PETHs_aligned_to_reaching(units, reaches, kin_module, preTime=1, po
                     backend=None
                     )
         
-        plt.show()
+        if show_plots:
+            plt.show()
+        else:
+            plt.close()
         
         tmp_df = pd.DataFrame(data=mod_list + dev_list + [unit.unit_name] + [fg]).T
         tmp_df.columns = mod_label_list + dev_label_list + ['unit_name'] + ['FG']
@@ -214,7 +218,10 @@ def modulation_in_functional_group(modulation_df, metric='modulation_RO', hue_or
                 palette='Dark2', hue_order=hue_order,
                 common_norm=False, cumulative=True, legend=False)
     ax.text(modulation_df[metric].max()*0.9, 0.25, f'p={np.round(med_out[1], 4)}', horizontalalignment='center', fontsize = 12)
-    plt.show()
+    if show_plots:
+        plt.show()
+    else:
+        plt.close()
 
 
 if __name__ == '__main__':

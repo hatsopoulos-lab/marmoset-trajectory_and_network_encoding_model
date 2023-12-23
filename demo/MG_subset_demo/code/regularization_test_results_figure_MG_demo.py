@@ -22,6 +22,7 @@ from utils import save_dict_to_hdf5, load_dict_from_hdf5
 
 marmscode = 'MG'
 filter_untuned = False
+show_plots = False
 
 script_directory = Path(os.path.dirname(os.path.abspath(sys.argv[0])))
 code_path = script_directory.parent.parent.parent / 'clean_final_analysis/'
@@ -151,7 +152,10 @@ for model, marm in itertools.product(['Full Kinematics', 'Kinematics + reachFN']
     fig.savefig(fig_path / f'{marm}_{model.replace(" ", "_")}_alpha_sweep.png', bbox_inches='tight', dpi=300)
 
     ax.set_title(marm)
-    plt.show()
+    if show_plots:
+        plt.show()
+    else:
+        plt.close()
 
 for model, marm in itertools.product(['Full Kinematics', 'Kinematics + reachFN'], marms): 
 
@@ -171,4 +175,7 @@ for model, marm in itertools.product(['Full Kinematics', 'Kinematics + reachFN']
 # ax.set_xlabel('L1 weight')
 # ax.set_yticklabels(params.alpha_range)
 # ax.set_xticklabels(params.l1_range)
-# plt.show()
+# if show_plots:
+#     plt.show()
+# else:
+#     plt.close()

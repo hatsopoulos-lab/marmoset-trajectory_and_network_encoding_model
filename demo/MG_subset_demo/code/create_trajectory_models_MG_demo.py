@@ -26,6 +26,7 @@ data_path = script_directory.parent.parent / 'data' / 'demo'
 sys.path.insert(0, str(code_path))
 from utils import load_dict_from_hdf5, save_dict_to_hdf5
 
+show_plots=False
 marmcode = 'MG'
 
 if marmcode=='TY':
@@ -336,7 +337,10 @@ def compute_trajectories_fft(traj_samples, srate = 150):
         axs[dim].plot(fft_freq, 2.0/traj_reshaped.shape[0] * np.abs(traj_fft[:, dim]))
         axs[dim].set_title(dimlabel)
     
-    plt.show()
+    if show_plots:
+        plt.show()
+    else:
+        plt.close()
     
 if __name__ == "__main__":
     

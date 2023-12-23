@@ -27,6 +27,7 @@ sys.path.insert(0, str(code_path))
 from hatlab_nwb_functions import get_sorted_units_and_apparatus_kinematics_with_metadata   
 from utils import choose_units_for_model
 
+show_plots=False
 marm = 'MG'
 
 if marm == 'TY':
@@ -362,7 +363,10 @@ def plot_functional_networks(FN, units_res, FN_key = 'split_reach_FNs', cmin=Non
         ax.set_title(title, fontsize=plot_params.axis_fontsize)
         ax.set_ylabel('Target Unit', fontsize=plot_params.axis_fontsize)
         ax.set_xlabel('Input Unit' , fontsize=plot_params.axis_fontsize)
-        plt.show()
+        if show_plots:
+            plt.show()
+        else:
+            plt.close()
             
         # plt.hist(network_copy.flatten(), bins = 30)
         # plt.show()
