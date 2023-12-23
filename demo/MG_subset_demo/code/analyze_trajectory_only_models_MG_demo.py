@@ -33,7 +33,7 @@ from utils import choose_units_for_model, get_interelectrode_distances_by_unit, 
 
 marmcode='MG'
 demo = True
-other_marm = 'TY' #None #'MG' #None
+other_marm = None #None #'MG' #None
 FN_computed = True
 fig_mode='paper'
 save_kinModels_pkl = False
@@ -1586,7 +1586,7 @@ if __name__ == "__main__":
                                                                                                         all_units_plot_subset = all_units_plot_subset,
                                                                                                         axlims=unit_axlims)
 
-    df = compute_and_analyze_trajectory_correlations(units_res, posTraj_mean, velTraj_mean, electrode_distances, params.best_lead_lag_key, FN = reach_FN, mode='concat', nplots=0)
+    df = compute_and_analyze_trajectory_correlations(units_res, posTraj_mean, velTraj_mean, electrode_distances, params.best_lead_lag_key, FN = reach_FN, mode='concat', nplots=1)
     
     pval=0.01
     print(f'At p = {pval} with bonferroni correction: {(units_res["shuffled_spikes_pval"]<pval/units_res.shape[0]).sum()}/{units_res.shape[0]} tuned to full kinematics, {(units_res["shuffled_traj_pval"]<pval/units_res.shape[0]).sum()}/{units_res.shape[0]} tuned to trajectory details')

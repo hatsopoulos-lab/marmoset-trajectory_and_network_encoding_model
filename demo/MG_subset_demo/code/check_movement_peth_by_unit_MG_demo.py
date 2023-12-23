@@ -39,7 +39,7 @@ elif marmcode == 'MG':
 
 dataset_code = nwb_analysis_file.stem.split('_')[0]
 plot_storage = plots = script_directory.parent / 'plots' / dataset_code / 'reaching_PETHs'
-modulation_data_storage = data_path / f'{nwb_analysis_file.stem}_modulationData.h5'
+modulation_data_storage = data_path / 'MG' / f'{nwb_analysis_file.stem}_modulationData.h5'
 
 os.makedirs(plot_storage, exist_ok=True)
 

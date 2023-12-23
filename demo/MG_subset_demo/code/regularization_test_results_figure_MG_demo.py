@@ -49,7 +49,7 @@ elif marmscode == 'both':
                                    46, 47, 48, 49, 52, 54, 55, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67,
                                    69, 70, 71, 72]]
 
-lags = ['lead_100_lag_300', 'lead_200_lag_300']
+lags = ['lead_100_lag_300']
 
 regtest_df = pd.DataFrame()
 for marm, pkl_file, tuned_idxs in zip(marms, pkl_infiles, tuned_units):    

@@ -355,7 +355,7 @@ if __name__ == "__main__":
     
     # with open(pkl_infile, 'rb') as f:
     #     results_dict = dill.load(f)
-    results_dict = load_dict_from_hdf5(pkl_infile.with_suffix('h5')) 
+    results_dict = load_dict_from_hdf5(pkl_infile.with_suffix('.h5')) 
     
     n_tasks_needed = len(results_dict.keys()) * params.num_models_including_shuffles * len(params.iter_ranges)
     if n_tasks != n_tasks_needed and not debugging and not demo:
@@ -368,7 +368,7 @@ if __name__ == "__main__":
         for tmp_task_id in task_list:
         
             tmp_job_array_folder = pkl_outfile.parent / 'trajectory_only_jobs_tmp_files' / f'{pkl_outfile.stem}'        
-            pkl_tmp_job_file = tmp_job_array_folder / f'{pkl_outfile.stem}_tmp_job_{str(task_id).zfill(3)}.pkl'
+            pkl_tmp_job_file = tmp_job_array_folder / f'{pkl_outfile.stem}_tmp_job_{str(tmp_task_id).zfill(3)}.pkl'
             
             os.makedirs(tmp_job_array_folder, exist_ok=True) 
             

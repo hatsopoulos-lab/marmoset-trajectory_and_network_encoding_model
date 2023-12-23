@@ -11,14 +11,25 @@ This code has been tested in a fresh conda environment using python>=3.11.
     numpy
     pandas
     pytables
+    scikit-learn
+    scipy
     pynwb
+    ndx_pose
+    neo
     elephant
     viziphant
-    astropy
+    quantities
+    dill
+    statsmodels
+    seaborn
+    probeinterface
+    
 
 # Installation
 
-    conda create -n paper_demo python=3.11 numpy pandas pytables
+    conda create -n paper_demo python=3.11 numpy pandas pytables scikit-learn seaborn 
+    conda activate paper_demo
+    pip install -U dill neo elephant viziphant statsmodels probeinterface pynwb
     
 
 

@@ -2181,16 +2181,16 @@ if __name__ == "__main__":
     # feature_correlation_plot(units_res, 'W_in', 'FN_percent_improvement', paperFig='unknown')
     # feature_correlation_plot(units_res, 'traj_avgPos_auc', 'FN_percent_improvement', paperFig='unknown')
     
-    
-    # stats for figure 2 summary plot
-    model_list_x = [  'shortTraj',        'traj', 'shortTraj_avgPos', 'traj_avgPos_shuffled_spikes', 'traj_avgPos_shuffled_traj']
-    model_list_y = ['traj_avgPos', 'traj_avgPos',      'traj_avgPos',                 'traj_avgPos',               'traj_avgPos']
-    fig_list     = [    'unknown',     'unknown',          'unknown',                     'unknown',                   'unknown']
-    for model_x, model_y, fignum in zip(model_list_x, model_list_y, fig_list):    
-        sign_test = plot_model_auc_comparison(units_res_completely_untuned_units_filtered, model_x, model_y, 
-                                              minauc = 0.45, maxauc = 0.8, hue_key='W_in', style_key=style_key, 
-                                              targets = None, col_key = None, paperFig=fignum, asterisk='')
-        print(f'{model_y} v {model_x}, YES_tuning_filter: p={np.round(sign_test.pvalue, 4)}, nY={sign_test.k}, nUnits={sign_test.n}, prop={np.round(sign_test.proportion_estimate, 2)}')
+    if not demo:
+        # stats for figure 2 summary plot
+        model_list_x = [  'shortTraj',        'traj', 'shortTraj_avgPos', 'traj_avgPos_shuffled_spikes', 'traj_avgPos_shuffled_traj']
+        model_list_y = ['traj_avgPos', 'traj_avgPos',      'traj_avgPos',                 'traj_avgPos',               'traj_avgPos']
+        fig_list     = [    'unknown',     'unknown',          'unknown',                     'unknown',                   'unknown']
+        for model_x, model_y, fignum in zip(model_list_x, model_list_y, fig_list):    
+            sign_test = plot_model_auc_comparison(units_res_completely_untuned_units_filtered, model_x, model_y, 
+                                                  minauc = 0.45, maxauc = 0.8, hue_key='W_in', style_key=style_key, 
+                                                  targets = None, col_key = None, paperFig=fignum, asterisk='')
+            print(f'{model_y} v {model_x}, YES_tuning_filter: p={np.round(sign_test.pvalue, 4)}, nY={sign_test.k}, nUnits={sign_test.n}, prop={np.round(sign_test.proportion_estimate, 2)}')
 
     save_dict_to_hdf5(results_dict, pkl_outfile.with_suffix('.h5'))
     # if save_kinModels_pkl:

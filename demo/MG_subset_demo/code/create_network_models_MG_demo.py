@@ -63,18 +63,20 @@ class params:
     numThresh = 100
     if debugging:
         num_model_samples = 2
+    elif demo:
+        num_model_samples = 5
     else:
         num_model_samples = 500
     
     primary_traj_model = 'traj_avgPos'
     if marmcode == 'TY':
-        lead_lag_keys_for_network = ['lead_100_lag_300', 'lead_100_lag_200']
+        lead_lag_keys_for_network = ['lead_100_lag_300']
         intra_inter_areas_list = [['Motor'], ['Sensory']]
         intra_inter_names_list = ['Motor', 'Sensory']
         trainRatio = 0.8
 
     elif marmcode == 'MG':
-        lead_lag_keys_for_network = ['lead_100_lag_300', 'lead_100_lag_200']
+        lead_lag_keys_for_network = ['lead_100_lag_300']
         intra_inter_areas_list = [['Motor'], ['Sensory']]
         intra_inter_names_list = ['Motor', 'Sensory']
         trainRatio = 0.8
@@ -807,13 +809,16 @@ if __name__ == "__main__":
     if debugging:
         task_id = 5
         file_creation_task = task_id
+    elif demo:
+        task_id = 0
+        file_creation_task = task_id    
     else:
         task_id = int(os.getenv('SLURM_ARRAY_TASK_ID'))
         file_creation_task = int(os.getenv('SLURM_ARRAY_TASK_MAX'))
     
     # with open(pkl_infile, 'rb') as f:
     #     results_dict = dill.load(f)
-    results_dict = load_dict_from_hdf5(pkl_infile.with_suffix('h5'))    
+    results_dict = load_dict_from_hdf5(pkl_infile.with_suffix('.h5'))    
         
     with NWBHDF5IO(nwb_infile, 'r') as io:
         nwb = io.read()
@@ -890,7 +895,7 @@ if __name__ == "__main__":
     all_tasks_info_list, task_model_list = assign_models_to_job_tasks(models_dict, task_id)        
     n_job_files = sum([len(single_task_list) for single_task_list in all_tasks_info_list])
     
-    for task_model_list in all_tasks_info_list:
+    for task_id, task_model_list in enumerate(all_tasks_info_list):
         for model_set, task_info in enumerate(task_model_list):
             
             if shuffles_only and 'edges_to_shuffle' not in task_info.keys():

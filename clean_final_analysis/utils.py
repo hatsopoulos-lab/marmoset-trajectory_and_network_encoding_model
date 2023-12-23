@@ -8,22 +8,17 @@ Created on Tue Jan 31 15:56:34 2023
 
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 import matplotlib
-import pickle
-import dill
-import os
-import glob
-import math
-import re
 import h5py
-import seaborn as sns
-from scipy.ndimage import median_filter, gaussian_filter
+from scipy.ndimage import gaussian_filter
 from functools import reduce  # forward compatibility for Python 3
 import operator
-from importlib import sys, reload
+from importlib import sys
+from pathlib import Path
 
-sys.path.insert(0, '/project/nicho/projects/marmosets/code_database/data_processing/nwb_tools/hatlab_nwb_tools/')
+script_directory = Path(sys.argv[0]).resolve().parent
+
+sys.path.insert(0, script_directory)
 from hatlab_nwb_functions import plot_prb, read_prb_hatlab 
 
 def get_single_lead_lag_models(all_models_data, lead, lag):

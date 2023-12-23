@@ -53,7 +53,6 @@ os.makedirs(tmp_job_array_folder, exist_ok=True)
 
 class params:
     
-    significant_proportion_thresh = 0.99
     numThresh = 100
     if debugging:
         num_model_samples = 2
@@ -237,7 +236,7 @@ def train_and_test_glm(task_info, network_features,
         for unit, (trainSpks, trainFts, testFts) in enumerate(zip(trainSpikes, trainFeatures, testFeatures)):
             glm = sm.GLM(trainSpks,
                          sm.add_constant(trainFts), 
-                         family=sm.families.Poisson(link=sm.families.links.log()))
+                         family=sm.families.Poisson(link=sm.families.links.Log()))
             encodingModel = glm.fit_regularized(method='elastic_net', alpha=alpha, L1_wt=l1)
             coefs  [:, unit, samp] = encodingModel.params            
             predictions.append(encodingModel.predict(sm.add_constant(testFts)))
@@ -350,6 +349,9 @@ if __name__ == "__main__":
         task_id = 0
         n_tasks = 1
         file_creation_task = task_id
+    elif demo:
+        task_id=0
+        n_tasks = 1
     else:
         task_id = int(os.getenv('SLURM_ARRAY_TASK_ID'))
         n_tasks = int(os.getenv('SLURM_ARRAY_TASK_COUNT')) 
@@ -357,7 +359,7 @@ if __name__ == "__main__":
     
     # with open(pkl_infile, 'rb') as f:
     #     results_dict = dill.load(f)
-    results_dict = load_dict_from_hdf5(pkl_infile.with_suffix('h5'))  
+    results_dict = load_dict_from_hdf5(pkl_infile.with_suffix('.h5'))  
         
     with NWBHDF5IO(nwb_infile, 'r') as io:
         nwb = io.read()
@@ -386,7 +388,7 @@ if __name__ == "__main__":
     all_tasks_info_list, task_model_list = assign_models_to_job_tasks(models_dict, task_id)        
     n_job_files = sum([len(single_task_list) for single_task_list in all_tasks_info_list])
     
-    for task_model_list in all_tasks_info_list:
+    for task_id, task_model_list in enumerate(all_tasks_info_list):
         for model_set, task_info in enumerate(task_model_list):
             
             pkl_tmp_job_file = tmp_job_array_folder / f'{pkl_outfile.stem}_tmp_job_{str(task_id).zfill(3)}_model_set_{str(model_set).zfill(2)}.pkl'
