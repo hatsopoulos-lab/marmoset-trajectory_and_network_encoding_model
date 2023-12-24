@@ -199,7 +199,7 @@ def recursively_save_dict_contents_to_group(h5file, path, dic, df_keys_list = No
     ....
     """
     for key, item in dic.items():
-        if isinstance(item, (np.ndarray, int, float, np.int64, np.float64, str, bytes)):
+        if isinstance(item, (np.ndarray, int, float, np.integer, np.float, str, bytes)):
             h5file[path + key] = item
         elif isinstance(item, list):
             if len(item) > 0 and type(item[0]) == str:

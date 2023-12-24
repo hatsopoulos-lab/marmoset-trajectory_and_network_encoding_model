@@ -7,7 +7,7 @@ is complete, but some requires cleanup prior to publishing.
 
 # Software Requirements
 
-This code has been tested in a fresh conda environment using python>=3.11.
+This code has been tested on Linux and Windows 10 in a fresh conda environment using python>=3.11.
 
 ## Python dependencies
     
@@ -27,8 +27,7 @@ This code has been tested in a fresh conda environment using python>=3.11.
     seaborn
     probeinterface
     
-
-# Installation (10-30 minutes)
+# Installation (<5 minutes for install, 5-25 minutes for data download)
 
 Create conda environment and install dependencies.
 
