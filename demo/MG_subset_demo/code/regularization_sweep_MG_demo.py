@@ -47,7 +47,7 @@ pkl_outfile  = nwb_infile.parent / f'{nwb_infile.stem.split("_with_functional_ne
 dataset_code = pkl_infile.stem.split('_')[0]
 plots = script_directory.parent / 'plots' / dataset_code
 
-tmp_job_array_folder = pkl_outfile.parent / 'regularization_sweep_tmp_files' / f'{pkl_outfile.stem}'        
+tmp_job_array_folder = pkl_outfile.parent / 'reg_tmp_files' / f'{pkl_outfile.stem[:2]}'        
 
 os.makedirs(tmp_job_array_folder, exist_ok=True)
 
@@ -391,7 +391,7 @@ if __name__ == "__main__":
     for task_id, task_model_list in enumerate(all_tasks_info_list):
         for model_set, task_info in enumerate(task_model_list):
             
-            pkl_tmp_job_file = tmp_job_array_folder / f'{pkl_outfile.stem}_tmp_job_{str(task_id).zfill(3)}_model_set_{str(model_set).zfill(2)}.pkl'
+            pkl_tmp_job_file = tmp_job_array_folder / f'{pkl_outfile.stem[:2]}_{str(task_id).zfill(3)}_{str(model_set).zfill(2)}.pkl'
     
             task_info = create_network_features_and_store_in_dict(task_info, reach_set_df)
             

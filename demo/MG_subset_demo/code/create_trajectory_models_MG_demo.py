@@ -371,8 +371,8 @@ if __name__ == "__main__":
         
         for tmp_task_id in task_list:
         
-            tmp_job_array_folder = pkl_outfile.parent / 'trajectory_only_jobs_tmp_files' / f'{pkl_outfile.stem}'        
-            pkl_tmp_job_file = tmp_job_array_folder / f'{pkl_outfile.stem}_tmp_job_{str(tmp_task_id).zfill(3)}.pkl'
+            tmp_job_array_folder = pkl_outfile.parent / 'traj_tmp_files' / f'{pkl_outfile.stem[:2]}'        
+            pkl_tmp_job_file = tmp_job_array_folder / f'{pkl_outfile.stem[:2]}_{str(tmp_task_id).zfill(3)}.pkl'
             
             os.makedirs(tmp_job_array_folder, exist_ok=True) 
             

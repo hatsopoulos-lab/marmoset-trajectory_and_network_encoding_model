@@ -49,8 +49,8 @@ elif marmcode=='MG':
 pkl_infile   = nwb_infile.parent / f'{nwb_infile.stem.split("_with_functional_networks")[0]}_{pkl_in_tag}.pkl'
 pkl_outfile  = nwb_infile.parent / f'{nwb_infile.stem.split("_with_functional_networks")[0]}_{pkl_out_tag}.pkl'
 
-tmp_job_array_folder  = pkl_outfile.parent / 'network_jobs_tmp_files' / f'{pkl_outfile.stem}'          
-models_storage_folder = pkl_outfile.parent / 'stored_encoding_models' / f'{pkl_outfile.stem}'
+tmp_job_array_folder  = pkl_outfile.parent / 'network_tmp_files' / f'{pkl_outfile.stem[:2]}'          
+models_storage_folder = pkl_outfile.parent / 'stored_encoding_models' / f'{pkl_outfile.stem[:2]}'
 os.makedirs(models_storage_folder, exist_ok=True)
 os.makedirs(tmp_job_array_folder, exist_ok=True) 
 
@@ -616,7 +616,7 @@ def train_and_test_glm(task_info, network_features_train_FN, network_features_te
                 coefs  [:, unit, samp] = encodingModel.params            
             
                 if save_GLMs:
-                    model_filepath = os.path.join(models_storage_folder, '%s_%s_sample_%s_unit_%s_encoding_model.pkl' % (lead_lag_key, model_name, str(samp).zfill(4), str(unit).zfill(3)))
+                    model_filepath = os.path.join(models_storage_folder, '%s_%s_sample_%s_unit_%s.pkl' % (lead_lag_key, model_name, str(samp).zfill(4), str(unit).zfill(3)))
                     with open(model_filepath, 'wb') as f:
                         dill.dump(encodingModel, f, recurse=True)
                     
@@ -626,7 +626,7 @@ def train_and_test_glm(task_info, network_features_train_FN, network_features_te
                 if save_GLMs:
                     stored_encoding_model = encodingModel 
                 else:   
-                    model_filepath = os.path.join(models_storage_folder, '%s_%s_sample_%s_unit_%s_encoding_model.pkl' % (lead_lag_key, trained_glm_source, str(samp).zfill(4), str(unit).zfill(3)))
+                    model_filepath = os.path.join(models_storage_folder, '%s_%s_sample_%s_unit_%s.pkl' % (lead_lag_key, trained_glm_source, str(samp).zfill(4), str(unit).zfill(3)))
                     with open(model_filepath, 'rb') as f:
                         stored_encoding_model = dill.load(f) 
                     
@@ -904,8 +904,8 @@ if __name__ == "__main__":
             elif no_shuffles and 'edges_to_shuffle' in task_info.keys():
                 continue
             
-            pkl_tmp_job_file = tmp_job_array_folder / f'{pkl_outfile.stem}_tmp_job_{str(task_id).zfill(3)}_model_set_{str(model_set).zfill(2)}.pkl'
-            
+            pkl_tmp_job_file = tmp_job_array_folder / f'{pkl_outfile.stem[:2]}_{str(task_id).zfill(3)}_{str(model_set).zfill(2)}.pkl'
+                        
             task_info = create_network_features_and_store_in_dict(task_info, reach_set_df)
             
             lead_lag_key = task_info['lead_lag_key']
