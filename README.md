@@ -44,21 +44,25 @@ For reviewers: data will be supplied via a link from the editor.
 
 For other users: the nwb file for running the demo is located at **Insert DANDI link**
 
-# Demo the code
-
-This should take ~XX minutes on a standard computer.
+# Demo the code (XX minutes)
 
 Open the in a text editor or python IDE: [/demo/MG_subset_demo/code/run_demo.py](/demo/MG_subset_demo/code/run_demo.py)
+
+You can execute this code in an IDE (such as spyder) or by running:
+
+    python ./demo/MG_subset_demo/code/run_demo.py
 
 This code will execute all the scripts in order and generate plots, which will populate in "marmoset-trajectory_and_network_encoding_model/demo/MG_subset_demo/plots". You can also open and run each code independently, in the order prescribed in run_demo.py.
 
 The demo analyzes all units and reach samples available in the MG dataset. However, only one lead/lag set of [-100, +300]ms is analyzed and only 5 train/test splits are completed (instead of the full 500). A few results that can't be replicated with only 5 train/test splits are disabled.
 
-# Reproduce MG data 
-
-This should take less than 5 minutes on a standard computer.
+# Reproduce MG figures in paper (<5 minutes) 
 
 Open in a text editor or python IDE: [/demo/MG_original_data_reproduction/code/reproduce_figures.py](/demo/MG_original_data_reproduction/code/reproduce_figures.py)
+
+You can execute this code in an IDE (such as spyder) or by running:
+
+    python ./demo/MG_original_data_reproduction/code/reproduce_figures.py
 
 This code will execute the figure reproduction scripts in order and generate plots, which will populate in "marmoset-trajectory_and_network_encoding_model/demo/MG_original_data_reproduction/plots". You can also open and run each code independently, in the order prescribed in reproduce_figures.py.
 
@@ -92,3 +96,6 @@ The full code is located in /clean_final_analysis/. This code is intended to run
 6.	Analyze full network models and produce rest of plots
 
 	-	[analyze_models_with_network_terms.py](/clean_final_analysis/python/analyze_models_with_network_terms.py)
+
+# License
+This work is licensed under the GNU General Public Licence v3.0. 

@@ -243,14 +243,14 @@ def plot_kinematic_features(sample_info, mark_pos):
     ax.set_ylabel(y_key)
     ax.set_zlabel(z_key)
     # plt.show()
-    fig.savefig('/project/nicho/projects/dalton/plots/TY20210211/kinematic_complexity_3D_%s_%s_%s.png' % (x_key, y_key, z_key), bbox_inches='tight', dpi=300)
+    # fig.savefig('/project/nicho/projects/dalton/plots/TY20210211/kinematic_complexity_3D_%s_%s_%s.png' % (x_key, y_key, z_key), bbox_inches='tight', dpi=300)
     
     fig, ax = plt.subplots(figsize=(6, 6),dpi=300)
     sns.scatterplot(ax=ax, data=sample_info, x=x_key, y=y_key, s = 1)
     ax.set_xlim(0, np.nanpercentile(sample_info[x_key], 95))
     ax.set_ylim(0, np.nanpercentile(sample_info[y_key], 95))
     # plt.show()
-    fig.savefig('/project/nicho/projects/dalton/plots/TY20210211/kinematic_complexity_2D_%s_%s.png' % (x_key, y_key), bbox_inches='tight', dpi=300)
+    # fig.savefig('/project/nicho/projects/dalton/plots/TY20210211/kinematic_complexity_2D_%s_%s.png' % (x_key, y_key), bbox_inches='tight', dpi=300)
 
     sample_info.sort_values(by = 'mean_tortuosity', ascending=True, inplace=True)
     fig = plt.figure(figsize=(8, 8),dpi=300)
