@@ -43,7 +43,7 @@ For reviewers: data will be supplied via a link from the editor.
 
 For other users: the nwb file for running the demo is located at **Insert DANDI link**
 
-# Demo the code (XX minutes)
+# Demo the code (~60 minutes)
 
 Open the in a text editor or python IDE: [/demo/MG_subset_demo/code/run_demo.py](/demo/MG_subset_demo/code/run_demo.py)
 
