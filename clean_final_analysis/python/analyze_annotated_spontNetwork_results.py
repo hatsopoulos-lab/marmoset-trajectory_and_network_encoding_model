@@ -17,6 +17,7 @@ import math
 import re
 import seaborn as sns
 from itertools import product
+from sklearn.metrics.pairwise import cosine_similarity
 from scipy.stats import binomtest, ttest_rel, ttest_ind, mannwhitneyu, linregress, pearsonr, median_test
 from scipy.integrate import cumtrapz
 from scipy.integrate import simps
@@ -42,10 +43,12 @@ skip_network_permutations = True
 pkl_in_tag  = 'network_models_created'
 pkl_out_tag = 'network_models_summarized' 
 pkl_add_stats_tag = 'kinematic_models_summarized' 
+gen_file_tag = 'generalization_experiments'
 
 if marmcode=='TY':
     nwb_infile   = data_path / 'TY' / 'TY20210211_freeAndMoths-003_resorted_20230612_DM_with_functional_networks.nwb' 
     annotated_nwbfile =  nwb_infile.parent / f'{nwb_infile.stem}_annotated_with_reach_segments{nwb_infile.suffix}'
+    single_reach_nwbfile = nwb_infile.parent / f'{nwb_infile.stem}_single_reaches{nwb_infile.suffix}'
     # reach_seg_nwbfile =  nwb_infile.parent / f'{nwb_infile.stem}_reach_segments{nwb_infile.suffix}'
     modulation_base = nwb_infile.parent / nwb_infile.stem.split('_with_functional_networks')[0]
 elif marmcode=='MG':
@@ -55,6 +58,7 @@ elif marmcode=='MG':
 pkl_infile       = nwb_infile.parent / f'{nwb_infile.stem.split("_with_functional_networks")[0]}_{pkl_in_tag}.pkl'
 pkl_outfile      = nwb_infile.parent / f'{nwb_infile.stem.split("_with_functional_networks")[0]}_{pkl_out_tag}.pkl'
 pkl_addstatsfile = nwb_infile.parent / f'{nwb_infile.stem.split("_with_functional_networks")[0]}_{pkl_add_stats_tag}.pkl'
+gen_results_file = nwb_infile.parent / f'{nwb_infile.stem.split("_with_functional_networks")[0]}_{gen_file_tag}.h5'
 
 dataset_code = pkl_infile.stem.split('_')[0]
 if fig_mode == 'paper':
@@ -853,6 +857,14 @@ def add_in_weight_to_units_df(units_res, FN):
     
     return units_res
 
+def add_generalization_experiments_to_units_df(units_res, gen_res):
+    
+    for model_key in gen_res['model_results'].keys():
+        if 'reach_test_FN' in model_key:
+            units_res[f'{model_key}_auc'] = gen_res['model_results'][model_key]['AUC'].mean(axis=-1)
+    
+    return units_res                                               
+
 def add_modulation_data_to_units_df(units_res):
 
     with open(f'{modulation_base}_modulationData.pkl', 'rb') as f:
@@ -1215,86 +1227,6 @@ def plot_average_frates_simple(average_rates_df):
     sns.move_legend(ax1, 'upper right')
     plt.show()
     
-
-def plot_trajectory_correlation_and_auc_distributions_for_subsets(auc_df, weights_df, paperFig = 'unknown', figname_mod = '', hue_order_FN=None, palette=None):
-    
-    fig, ax = plt.subplots(figsize=plot_params.distplot_figsize)
-    sns.kdeplot(ax=ax, data=auc_df, palette=palette, linewidth=plot_params.distplot_linewidth,
-                x='Kinematics_AUC', hue='Units Subset', common_norm=False, bw_adjust=0.4, cumulative=True, hue_order=hue_order_FN)
-    ax.legend(bbox_to_anchor=(1.1, 0.5), loc='center left', 
-              handles = ax.lines[::-1],
-              labels  = hue_order_FN, 
-              title_fontsize = plot_params.axis_fontsize,
-              fontsize = plot_params.tick_fontsize)
-    ax.set_yticks([0, 1])
-    sns.despine(ax=ax)
-    ax.set_xlabel('Full kinematics AUC', fontsize=plot_params.axis_fontsize)
-    plt.show()        
-    fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_cumDist_KinAUC_huekey_UnitsSubset{figname_mod}.png'), bbox_inches='tight', dpi=plot_params.dpi)    
-
-    #---------------------------------------------------------------------------------
-    med_out = median_test(auc_df.loc[auc_df['Units Subset'] == 'Reach-Specific', 'Kinematics_AUC'], 
-                          auc_df.loc[auc_df['Units Subset'] == 'Non-Specific', 'Kinematics_AUC'])
-    print(f'Kin_AUC{figname_mod}: reach v non, p={np.round(med_out[1], 4)}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
-       
-    med_out = median_test(auc_df.loc[auc_df['Units Subset'] == 'Reach-Specific', 'Kinematics_AUC'], 
-                          auc_df.loc[auc_df['Units Subset'] == 'Full', 'Kinematics_AUC'])
-    print(f'Kin_AUC{figname_mod}: reach v full, p={np.round(med_out[1], 4)}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
-    med_out = median_test(auc_df.loc[auc_df['Units Subset'] == 'Non-Specific', 'Kinematics_AUC'], 
-                          auc_df.loc[auc_df['Units Subset'] == 'Full', 'Kinematics_AUC'])
-    print(f'Kin_AUC{figname_mod}: non v full, p={np.round(med_out[1], 4)}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
-    
-    fig, ax = plt.subplots(figsize=plot_params.distplot_figsize)
-    sns.kdeplot(ax=ax, data=auc_df, palette=palette, linewidth=plot_params.distplot_linewidth,
-                x='Kinematics_AUC', hue='Units Subset', common_norm=False, bw_adjust=0.4, cumulative=False, hue_order=hue_order_FN)
-    ax.legend().remove()
-    sns.despine(ax=ax)
-    ax.set_xlabel('Full kinematics AUC', fontsize=plot_params.axis_fontsize)
-    plt.show()        
-    fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_distribution_KinAUC_huekey_UnitsSubset{figname_mod}.png'), bbox_inches='tight', dpi=plot_params.dpi)    
-
-    #---------------------------------------------------------------------------------    
-
-    med_out = median_test(weights_df.loc[weights_df['Units Subset'] == 'Reach-Specific', 'pearson_r'], 
-                          weights_df.loc[weights_df['Units Subset'] == 'Non-Specific', 'pearson_r'])
-    print(f'pearson_corr{figname_mod}: reach v non, p={np.round(med_out[1], 4)}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
-    med_out = median_test(weights_df.loc[weights_df['Units Subset'] == 'Reach-Specific', 'pearson_r'], 
-                          weights_df.loc[weights_df['Units Subset'] == 'Full', 'pearson_r'])
-    print(f'pearson_corr{figname_mod}: reach v full, p={np.round(med_out[1], 4)}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
-    med_out = median_test(weights_df.loc[weights_df['Units Subset'] == 'Non-Specific', 'pearson_r'], 
-                          weights_df.loc[weights_df['Units Subset'] == 'Full', 'pearson_r'])
-    print(f'pearson_corr{figname_mod}: non v full, p={np.round(med_out[1], 4)}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
-        
-    fig, ax = plt.subplots(figsize=plot_params.distplot_figsize)
-    sns.kdeplot(ax=ax, data=weights_df, palette=palette, linewidth=plot_params.distplot_linewidth,
-                x='pearson_r', hue='Units Subset', common_norm=False, bw_adjust=0.4, cumulative=False, hue_order=hue_order_FN)
-    ax.legend().remove()
-    ax.set_xlabel('Preferred trajectory\ncorrelation')
-    sns.despine(ax=ax)
-    plt.show()    
-    fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_distribution_pearson_r_huekey_UnitsSubset{figname_mod}.png'), bbox_inches='tight', dpi=plot_params.dpi)    
-    
-    #---------------------------------------------------------------------------------
-    
-    med_out = median_test(weights_df.loc[weights_df['Units Subset'] == 'Reach-Specific', 'pearson_r_squared'], 
-                          weights_df.loc[weights_df['Units Subset'] == 'Non-Specific', 'pearson_r_squared'])
-    print(f'pearson_r_squared{figname_mod}: reach v non, p={np.round(med_out[1], 4)}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
-    med_out = median_test(weights_df.loc[weights_df['Units Subset'] == 'Reach-Specific', 'pearson_r_squared'], 
-                          weights_df.loc[weights_df['Units Subset'] == 'Full', 'pearson_r_squared'])
-    print(f'pearson_r_squared{figname_mod}: reach v full, p={np.round(med_out[1], 4)}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
-    med_out = median_test(weights_df.loc[weights_df['Units Subset'] == 'Non-Specific', 'pearson_r_squared'], 
-                          weights_df.loc[weights_df['Units Subset'] == 'Full', 'pearson_r_squared'])
-    print(f'pearson_r_squared{figname_mod}: non v full, p={np.round(med_out[1], 4)}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
-    
-        
-    fig, ax = plt.subplots(figsize=plot_params.distplot_figsize)
-    sns.kdeplot(ax=ax, data=weights_df, palette=palette, linewidth=plot_params.distplot_linewidth,
-                x='pearson_r_squared', hue='Units Subset', common_norm=False, bw_adjust=0.4, cumulative=False, hue_order=hue_order_FN)
-    ax.legend().remove()
-    sns.despine(ax=ax)
-    plt.show()    
-    fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_distribution_pearson_r_squared_huekey_UnitsSubset{figname_mod}.png'), bbox_inches='tight', dpi=plot_params.dpi)    
-
 def plot_wji_distributions_for_subsets(weights_df, paperFig = 'unknown', figname_mod = '', hue_order_FN=None, palette=None):
     
     
@@ -1391,23 +1323,444 @@ def plot_wji_distributions_for_subsets(weights_df, paperFig = 'unknown', figname
     # plt.show() 
     # fig.savefig(os.path.join(plots, 'unknown', f'{marmcode}_subnetwork_pearson_r_squared_vs_wji_colkey_UnitsSubset{figname_mod}.png'), bbox_inches='tight', dpi=plot_params.dpi)    
 
-def make_FN_similarity_plots(FN_df):
-    corr = FN_df.corr()
+def graph_alignment_score(FN_comps):
+    gas = 2*FN_comps.min(axis=1).sum() / FN_comps.sum(axis=1).sum(axis=0) 
+    return gas
+
+def make_FN_similarity_plots(FN_df, sub_basis):
+    # corr = FN_df.corr()
+    # np.fill_diagonal(corr.values, np.nan)    
+    # mask = np.triu(np.ones_like(corr, dtype=bool))
+    # f, ax = plt.subplots(figsize=(11, 9))
+    # sns.heatmap(ax=ax, data=corr, annot=True, mask=None, cmap='cividis',
+    #             square=True, linewidths=.5, cbar_kws={"shrink": .5})
+    # ax.set_title(f'Correlation: {sub_basis}')
+    # plt.show()
+    
+    # cosineSim_df = pd.DataFrame(index = FN_df.columns, columns=FN_df.columns, dtype='float')
+    # for col1, col2 in product(FN_df.columns, FN_df.columns):
+    #     if col1 != col2:
+    #         cosineSim_df.loc[col1, col2] = cosine_similarity(np.expand_dims(FN_df[col1], 0), np.expand_dims(FN_df[col2], 0))[0]
+    
+    # f, ax = plt.subplots(figsize=(11, 9))
+    # sns.heatmap(ax=ax, data=cosineSim_df, annot=True, mask=None, cmap='cividis',
+    #             vmin=0.2, vmax=1, square=True, linewidths=.5, cbar_kws={"shrink": .5})
+    # ax.set_title(f'Cosine Similarity: {sub_basis}')
+    # plt.show()
+    
+    gas_df = pd.DataFrame(index = FN_df.columns, columns=FN_df.columns, dtype='float')
+    for col1, col2 in product(FN_df.columns, FN_df.columns):
+        if col1 != col2:
+            gas_df.loc[col1, col2] = graph_alignment_score(FN_df[[col1, col2]])
     f, ax = plt.subplots(figsize=(11, 9))
-    sns.heatmap(ax=ax, data=corr, annot=True,
-                square=True, linewidths=.5, cbar_kws={"shrink": .5})
+    sns.heatmap(ax=ax, data=gas_df, annot=True, mask=None, cmap='cividis',
+                vmin=0.1, vmax=0.8, square=True, linewidths=.5, cbar_kws={"shrink": .5})
+    ax.set_title(f'GAS: {sub_basis}')
+    plt.show()
+    
+def plot_trajectory_correlation_and_auc_distributions_for_subsets(auc_df, weights_df, paperFig = 'unknown', figname_mod = '', hue_order_FN=None, palette=None):
+    
+    fig, ax = plt.subplots(figsize=plot_params.distplot_figsize)
+    sns.kdeplot(ax=ax, data=auc_df, palette=palette, linewidth=plot_params.distplot_linewidth,
+                x='Kinematics_AUC', hue='Units Subset', common_norm=False, bw_adjust=0.4, cumulative=True, hue_order=hue_order_FN)
+    ax.legend(bbox_to_anchor=(1.1, 0.5), loc='center left', 
+              handles = ax.lines[::-1],
+              labels  = hue_order_FN, 
+              title_fontsize = plot_params.axis_fontsize,
+              fontsize = plot_params.tick_fontsize)
+    ax.set_yticks([0, 1])
+    sns.despine(ax=ax)
+    ax.set_xlabel('Full kinematics AUC', fontsize=plot_params.axis_fontsize)
+    plt.show()        
+    fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_cumDist_KinAUC_huekey_UnitsSubset{figname_mod}.png'), bbox_inches='tight', dpi=plot_params.dpi)    
+
+    #---------------------------------------------------------------------------------
+    med_out = median_test(auc_df.loc[auc_df['Units Subset'] == 'Reach-Specific', 'Kinematics_AUC'], 
+                          auc_df.loc[auc_df['Units Subset'] == 'Non-Specific', 'Kinematics_AUC'])
+    print(f'Kin_AUC{figname_mod}: reach v non, p={np.round(med_out[1], 4)}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
+       
+    med_out = median_test(auc_df.loc[auc_df['Units Subset'] == 'Reach-Specific', 'Kinematics_AUC'], 
+                          auc_df.loc[auc_df['Units Subset'] == 'Full', 'Kinematics_AUC'])
+    print(f'Kin_AUC{figname_mod}: reach v full, p={np.round(med_out[1], 4)}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
+    med_out = median_test(auc_df.loc[auc_df['Units Subset'] == 'Non-Specific', 'Kinematics_AUC'], 
+                          auc_df.loc[auc_df['Units Subset'] == 'Full', 'Kinematics_AUC'])
+    print(f'Kin_AUC{figname_mod}: non v full, p={np.round(med_out[1], 4)}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
+    
+    fig, ax = plt.subplots(figsize=plot_params.distplot_figsize)
+    sns.kdeplot(ax=ax, data=auc_df, palette=palette, linewidth=plot_params.distplot_linewidth,
+                x='Kinematics_AUC', hue='Units Subset', common_norm=False, bw_adjust=0.4, cumulative=False, hue_order=hue_order_FN)
+    ax.legend().remove()
+    sns.despine(ax=ax)
+    ax.set_xlabel('Full kinematics AUC', fontsize=plot_params.axis_fontsize)
+    plt.show()        
+    fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_distribution_KinAUC_huekey_UnitsSubset{figname_mod}.png'), bbox_inches='tight', dpi=plot_params.dpi)    
+
+    #---------------------------------------------------------------------------------    
+
+    med_out = median_test(weights_df.loc[weights_df['Units Subset'] == 'Reach-Specific', 'pearson_r'], 
+                          weights_df.loc[weights_df['Units Subset'] == 'Non-Specific', 'pearson_r'])
+    print(f'pearson_corr{figname_mod}: reach v non, p={np.round(med_out[1], 4)}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
+    med_out = median_test(weights_df.loc[weights_df['Units Subset'] == 'Reach-Specific', 'pearson_r'], 
+                          weights_df.loc[weights_df['Units Subset'] == 'Full', 'pearson_r'])
+    print(f'pearson_corr{figname_mod}: reach v full, p={np.round(med_out[1], 4)}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
+    med_out = median_test(weights_df.loc[weights_df['Units Subset'] == 'Non-Specific', 'pearson_r'], 
+                          weights_df.loc[weights_df['Units Subset'] == 'Full', 'pearson_r'])
+    print(f'pearson_corr{figname_mod}: non v full, p={np.round(med_out[1], 4)}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
+        
+    fig, ax = plt.subplots(figsize=plot_params.distplot_figsize)
+    sns.kdeplot(ax=ax, data=weights_df, palette=palette, linewidth=plot_params.distplot_linewidth,
+                x='pearson_r', hue='Units Subset', common_norm=False, bw_adjust=0.4, cumulative=False, hue_order=hue_order_FN)
+    ax.legend().remove()
+    ax.set_xlabel('Preferred trajectory\ncorrelation')
+    sns.despine(ax=ax)
+    plt.show()    
+    fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_distribution_pearson_r_huekey_UnitsSubset{figname_mod}.png'), bbox_inches='tight', dpi=plot_params.dpi)    
+
+
+def NO_SUMS_plot_in_and_out_weights_of_functional_groups(units_res, annotated_FN_dict, outside_group_only = False, 
+                                                 subset_idxs = None, subset_basis=['Reach-Specific'],
+                                                 gen_test_behavior = None,
+                                                 hue_order_FN=None, palette=None):
+    
+    weights_df = pd.DataFrame()
+    completed_comps = []
+    if subset_idxs is not None:
+        for sub_basis in subset_basis: 
+            if outside_group_only and sub_basis == 'Full':
+                continue
+            for (behavior, behavior_FN), (behaviorComp, behaviorComp_FN) in product(annotated_FN_dict.items(), annotated_FN_dict.items()):
+                
+                if not (behaviorComp.lower() == gen_test_behavior.lower() and behavior.lower() == 'reach1'):
+                    continue
+                
+                # if not ((behaviorComp.lower() == gen_test_behavior.lower() and behavior.lower() == 'reach1') or 
+                #        ( behavior.lower() == gen_test_behavior.lower() and behaviorComp.lower() == 'reach1')):
+                #     continue
+                
+                # elif behavior == behaviorComp or f'{behaviorComp}_vs_{behavior}' in completed_comps:
+                #     continue
+                # else:
+                #     completed_comps.append(f'{behavior}_vs_{behaviorComp}')
+                
+                sub_idxs = subset_idxs.copy()
+                
+                if 'Non-' in sub_basis:
+                    sub_idxs = np.setdiff1d(np.array(range(units_res.shape[0])), sub_idxs)
+                elif sub_basis == 'Full':
+                    sub_idxs = np.array(range(units_res.shape[0]))                     
+                
+                for sub_type in ['target', 'source']:
+                    if sub_type == 'target':
+                        if outside_group_only:
+                            targets, sources = sub_idxs, np.setdiff1d(np.arange(behavior_FN.shape[1], dtype=int), sub_idxs)
+                        else:
+                            targets, sources = sub_idxs, range(behavior_FN.shape[1])                            
+                        sub_FN, sub_comp_FN = behavior_FN[np.ix_(targets, sources)], behaviorComp_FN[np.ix_(targets, sources)]
+                        units_res_subset_units = units_res.loc[targets, :]
+                    elif sub_type == 'source':
+                        if outside_group_only:
+                            targets, sources = np.setdiff1d(np.arange(behavior_FN.shape[0], dtype=int), sub_idxs), sub_idxs 
+                        else:
+                            targets, sources = range(behavior_FN.shape[0]), sub_idxs  
+                        sub_FN, sub_comp_FN = behavior_FN[np.ix_(targets, sources)], behaviorComp_FN[np.ix_(targets, sources)]
+                        units_res_subset_units = units_res.loc[sources, :]
+                                
+                    units_res_sources = units_res.loc[sources, :]
+                    units_res_targets = units_res.loc[targets, :]
+
+                    if sub_type == 'target':
+                        wKey = 'In'
+                        w_in      = sub_FN[sub_FN != 0]
+                        w_in_comp = sub_comp_FN[sub_FN != 0]
+                        tmp_df = pd.DataFrame(data=zip(w_in,
+                                                       w_in_comp,
+                                                       np.tile(units_res_targets['cortical_area'], sub_FN.shape[1]),
+                                                       np.repeat(wKey, sub_FN.size),
+                                                       np.repeat(sub_basis, sub_FN.size),
+                                                       ),
+                                              columns=['Wji', 'Wji_comp', 'input_area', 'In/Out', 'Units Subset'])
+                    elif sub_type == 'source':
+                        wKey = 'Out'
+                        w_out      = sub_FN[sub_FN != 0]
+                        w_out_comp = sub_comp_FN[sub_FN != 0]
+                        tmp_df = pd.DataFrame(data=zip(w_out,
+                                                       w_out_comp,
+                                                       np.tile(units_res_sources['cortical_area'], sub_FN.shape[0]),
+                                                       np.repeat(wKey, sub_FN.size),
+                                                       np.repeat(sub_basis, sub_FN.size),
+                                                       ),
+                                              columns=['Wji', 'Wji_comp', 'input_area', 'In/Out', 'Units Subset'])
+                    weights_df = pd.concat((weights_df, tmp_df))
+
+    # plot_wji_distributions_for_subsets(weights_df, paperFig = 'Exploratory_Spont_FNs', figname_mod = '', hue_order_FN=hue_order_FN, palette=palette) 
+    make_in_and_out_weight_distribution_plots(weights_df, behavior='reach1', comp_behavior=gen_test_behavior, hue_order_FN=hue_order_FN, palette=palette, paperFig = None)
+    # plot_trajectory_correlation_and_auc_distributions_for_subsets(auc_df, weights_df, paperFig='Exploratory_Spont_FNs', figname_mod = '', hue_order_FN=hue_order_FN, palette=palette)
+    # plot_modulation_for_subsets(auc_df, paperFig='Exploratory_Spont_FNs', figname_mod = '_all', hue_order_FN=hue_order_FN, palette=palette)
+
+    return weights_df  
+
+def make_in_and_out_weight_distribution_plots(weights_df, behavior, comp_behavior, hue_order_FN=None, palette=None, paperFig = None):
+    for in_out_key, FG_member_key in product(weights_df['In/Out'].unique(), weights_df['FG Member'].unique()): 
+        fig, ax = plt.subplots(figsize=plot_params.distplot_figsize)
+        sns.kdeplot(ax=ax, data=weights_df.loc[(weights_df['In/Out'] == in_out_key) & (weights_df['FG Member'] == FG_member_key), :], palette=palette, linewidth=plot_params.distplot_linewidth,
+                    x='Wji', hue='Units Subset', common_norm=False, bw_adjust=0.4, cumulative=True, hue_order=hue_order_FN)
+        ax.set_title(f'{in_out_key} Weights: {FG_member_key}')
+        ax.legend(bbox_to_anchor=(1.1, 0.5), loc='center left', 
+                  handles = ax.lines[::-1],
+                  labels  = hue_order_FN, 
+                  title_fontsize = plot_params.axis_fontsize,
+                  fontsize = plot_params.tick_fontsize)
+        ax.set_xlabel(f'$W_{{{in_out_key}}}$')
+        sns.despine(ax=ax)
+        ax.set_yticks([0, 1])
+        plt.show()
+
+    for behave, FG_member_key in product([behavior, comp_behavior], weights_df['FG Member'].unique()): 
+        fig, ax = plt.subplots(figsize=plot_params.distplot_figsize)
+        behave = behave.capitalize() if behave != 'reach1' else behave
+        sns.kdeplot(ax=ax, data=weights_df.loc[(weights_df['FG Member'] == FG_member_key) & \
+                                               (weights_df['Behavior'] == behave), :], 
+                    palette=palette, linewidth=plot_params.distplot_linewidth,
+                    x='Wji', hue='Units Subset', common_norm=False, bw_adjust=0.4, cumulative=True, hue_order=hue_order_FN)
+        ax.set_title(f'{behave}: {FG_member_key}')
+        ax.legend(bbox_to_anchor=(1.1, 0.5), loc='center left', 
+                  handles = ax.lines[::-1],
+                  labels  = hue_order_FN, 
+                  title_fontsize = plot_params.axis_fontsize,
+                  fontsize = plot_params.tick_fontsize)
+        ax.set_xlabel(f'$W_{{mean}}$')
+        sns.despine(ax=ax)
+        ax.set_xlim([0, .02])
+        ax.set_yticks([0, 1])
+        plt.show()
+
+    for behave, subset in product([behavior, comp_behavior], weights_df['Units Subset'].unique()): 
+        fig, ax = plt.subplots(figsize=plot_params.distplot_figsize)
+        behave = behave.capitalize() if behave != 'reach1' else behave
+        sns.kdeplot(ax=ax, data=weights_df.loc[(weights_df['Units Subset'] == subset) & \
+                                               (weights_df['Behavior'] == behave), :], 
+                    palette=palette, linewidth=plot_params.distplot_linewidth,
+                    x='Wji', hue='FG Member', common_norm=False, bw_adjust=0.4, cumulative=True, hue_order=None)
+        ax.set_title(f'{behave}: {subset}')
+        ax.legend(bbox_to_anchor=(1.1, 0.5), loc='center left', 
+                  handles = ax.lines[::-1],
+                  labels  = ['Within FG', 'Outside FG'], 
+                  title_fontsize = plot_params.axis_fontsize,
+                  fontsize = plot_params.tick_fontsize)
+        ax.set_xlabel(f'$W_{{mean}}$')
+        sns.despine(ax=ax)
+        ax.set_xlim([0, .02])
+        ax.set_yticks([0, 1])
+        
+        med_out = median_test(weights_df.loc[(weights_df['Units Subset'] == subset) & \
+                                             (weights_df['Behavior'] == behave)     & \
+                                             (weights_df['FG Member'] == 'inFG'),        'Wji'], 
+                              weights_df.loc[(weights_df['Units Subset'] == subset) & \
+                                             (weights_df['Behavior'] == behave)     & \
+                                             (weights_df['FG Member'] == 'outFG'),        'Wji']
+                              )
+        print(f'Wji, {behave}, {subset}: within vs outside FG, p={np.round(med_out[1], 4)}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
+        
+        
+        plt.show()
+        
+        # fig, ax = plt.subplots(figsize=plot_params.distplot_figsize)
+        # sns.kdeplot(ax=ax, data=weights_df.loc[(weights_df['In/Out'] == in_out_key) & (weights_df['FG Member'] == FG_member_key), :], palette=palette, linewidth=plot_params.distplot_linewidth,
+        #             x='Wji_comp', hue='Units Subset', common_norm=False, bw_adjust=0.4, cumulative=True, hue_order=hue_order_FN)
+        # ax.set_title(f'{in_out_key} Weights: {comp_behavior}')
+        # ax.legend(bbox_to_anchor=(1.1, 0.5), loc='center left', 
+        #           handles = ax.lines[::-1],
+        #           labels  = hue_order_FN, 
+        #           title_fontsize = plot_params.axis_fontsize,
+        #           fontsize = plot_params.tick_fontsize)
+        # ax.set_xlabel(f'$W_{{{in_out_key}}}$, {FG_member_key}')
+        # sns.despine(ax=ax)
+        # ax.set_yticks([0, 1])
+        # plt.show()
+    
+    for subset, FG_member_key in product(weights_df['Units Subset'].unique(), weights_df['FG Member'].unique()): 
+        fig, ax = plt.subplots(figsize=plot_params.distplot_figsize)
+        sns.kdeplot(ax=ax, data=weights_df.loc[(weights_df['Units Subset'] == subset) & (weights_df['FG Member'] == FG_member_key), :], palette=palette, linewidth=plot_params.distplot_linewidth,
+                    x='Wji', hue='Behavior', common_norm=False, bw_adjust=0.4, cumulative=True, hue_order=None)
+        ax.set_title(f'{subset}: {FG_member_key}')
+        ax.legend(bbox_to_anchor=(1.1, 0.5), loc='center left', 
+                  handles = ax.lines[::-1], 
+                  labels = [behavior, comp_behavior],
+                  title_fontsize = plot_params.axis_fontsize,
+                  fontsize = plot_params.tick_fontsize)
+        ax.set_xlabel(f'$W_{{ji}}$')
+        ax.set_xlim([0, .02])
+        sns.despine(ax=ax)
+        ax.set_yticks([0, 1])
+        plt.show()
+        
     
 
+# def make_in_and_out_weight_distribution_plots(weights_df, behavior, comp_behavior, hue_order_FN=None, palette=None, paperFig = None):
+#     for in_out_key in weights_df['In/Out'].unique(): 
+#         fig, ax = plt.subplots(figsize=plot_params.distplot_figsize)
+#         sns.kdeplot(ax=ax, data=weights_df.loc[(weights_df['In/Out'] == in_out_key), :], palette=palette, linewidth=plot_params.distplot_linewidth,
+#                     x='Wji', hue='Units Subset', common_norm=False, bw_adjust=0.4, cumulative=True, hue_order=hue_order_FN)
+#         ax.set_title(f'{in_out_key} Weights: {behavior}')
+#         ax.legend(bbox_to_anchor=(1.1, 0.5), loc='center left', 
+#                   handles = ax.lines[::-1],
+#                   labels  = hue_order_FN, 
+#                   title_fontsize = plot_params.axis_fontsize,
+#                   fontsize = plot_params.tick_fontsize)
+#         ax.set_xlabel('$W_{{ji}}$')
+#         sns.despine(ax=ax)
+#         ax.set_yticks([0, 1])
+#         plt.show()
+        
+#         fig, ax = plt.subplots(figsize=plot_params.distplot_figsize)
+#         sns.kdeplot(ax=ax, data=weights_df.loc[(weights_df['In/Out'] == in_out_key), :], palette=palette, linewidth=plot_params.distplot_linewidth,
+#                     x='Wji_comp', hue='Units Subset', common_norm=False, bw_adjust=0.4, cumulative=True, hue_order=hue_order_FN)
+#         ax.set_title(f'{in_out_key} Weights: {comp_behavior}')
+#         ax.legend(bbox_to_anchor=(1.1, 0.5), loc='center left', 
+#                   handles = ax.lines[::-1],
+#                   labels  = hue_order_FN, 
+#                   title_fontsize = plot_params.axis_fontsize,
+#                   fontsize = plot_params.tick_fontsize)
+#         ax.set_xlabel('$W_{{ji}}$')
+#         sns.despine(ax=ax)
+#         ax.set_yticks([0, 1])
+#         plt.show()
+
+def plot_in_and_out_weights_of_functional_groups(units_res, annotated_FN_dict, outside_group_only = False, 
+                                                 subset_idxs = None, subset_basis=['Reach-Specific'],
+                                                 gen_test_behavior = None,
+                                                 hue_order_FN=None, palette=None):
+    
+    weights_df = pd.DataFrame()
+    completed_comps = []
+    if subset_idxs is not None:
+        for sub_basis in subset_basis: 
+            if outside_group_only and sub_basis == 'Full':
+                continue
+            for (behavior, behavior_FN), (behaviorComp, behaviorComp_FN) in product(annotated_FN_dict.items(), annotated_FN_dict.items()):
+                
+                if not (behaviorComp.lower() == gen_test_behavior.lower() and behavior.lower() == 'reach1'):
+                    continue
+                
+                # if not ((behaviorComp.lower() == gen_test_behavior.lower() and behavior.lower() == 'reach1') or 
+                #        ( behavior.lower() == gen_test_behavior.lower() and behaviorComp.lower() == 'reach1')):
+                #     continue
+                
+                # elif behavior == behaviorComp or f'{behaviorComp}_vs_{behavior}' in completed_comps:
+                #     continue
+                # else:
+                #     completed_comps.append(f'{behavior}_vs_{behaviorComp}')
+                
+                sub_idxs = subset_idxs.copy()
+                
+                if 'Non-' in sub_basis:
+                    sub_idxs = np.setdiff1d(np.array(range(units_res.shape[0])), sub_idxs)
+                elif sub_basis == 'Full':
+                    sub_idxs = np.array(range(units_res.shape[0]))                     
+                
+                for wDir in ['In', 'Out']:
+                    if wDir == 'In':
+                        targets, sources = sub_idxs, range(behavior_FN.shape[1])                            
+                        sub_FN, sub_comp_FN = behavior_FN[np.ix_(targets, sources)], behaviorComp_FN[np.ix_(targets, sources)]
+                        units_res_subset_units = units_res.loc[targets, :]
+                        
+                        tmp_df = pd.DataFrame(data=zip(sub_FN     [:, sub_idxs].mean(axis=1),
+                                                       units_res_subset_units['cortical_area'],
+                                                       np.repeat(wDir, sub_FN.shape[0]),
+                                                       np.repeat(sub_basis, sub_FN.shape[0]),
+                                                       np.repeat('inFG', sub_FN.shape[0]),
+                                                       np.repeat(behavior, sub_FN.shape[0])),
+                                              columns=['Wji', 'input_area', 'In/Out', 'Units Subset', 'FG Member', 'Behavior'])
+                        weights_df = pd.concat((weights_df, tmp_df))
+
+                        tmp_df = pd.DataFrame(data=zip(sub_comp_FN[:, sub_idxs].mean(axis=1),
+                                                       units_res_subset_units['cortical_area'],
+                                                       np.repeat(wDir, sub_FN.shape[0]),
+                                                       np.repeat(sub_basis, sub_FN.shape[0]),
+                                                       np.repeat('inFG', sub_FN.shape[0]),
+                                                       np.repeat(behaviorComp, sub_FN.shape[0])),
+                                              columns=['Wji', 'input_area', 'In/Out', 'Units Subset', 'FG Member', 'Behavior'])
+                        weights_df = pd.concat((weights_df, tmp_df))
+
+                        tmp_df = pd.DataFrame(data=zip(sub_FN     [:, np.setdiff1d(np.arange(behavior_FN.shape[0]), sub_idxs)].mean(axis=1),
+                                                       units_res_subset_units['cortical_area'],
+                                                       np.repeat(wDir, sub_FN.shape[0]),
+                                                       np.repeat(sub_basis, sub_FN.shape[0]),
+                                                       np.repeat('outFG', sub_FN.shape[0]),
+                                                       np.repeat(behavior, sub_FN.shape[0])),
+                                              columns=['Wji', 'input_area', 'In/Out', 'Units Subset', 'FG Member', 'Behavior'])
+                        weights_df = pd.concat((weights_df, tmp_df))
+
+                        tmp_df = pd.DataFrame(data=zip(sub_comp_FN[:, np.setdiff1d(np.arange(behavior_FN.shape[0]), sub_idxs)].mean(axis=1),
+                                                       units_res_subset_units['cortical_area'],
+                                                       np.repeat(wDir, sub_FN.shape[0]),
+                                                       np.repeat(sub_basis, sub_FN.shape[0]),
+                                                       np.repeat('outFG', sub_FN.shape[0]),
+                                                       np.repeat(behaviorComp, sub_FN.shape[0])),
+                                              columns=['Wji', 'input_area', 'In/Out', 'Units Subset', 'FG Member', 'Behavior'])
+                        weights_df = pd.concat((weights_df, tmp_df))
+                        
+                    elif wDir == 'Out':
+                        targets, sources = range(behavior_FN.shape[0]), sub_idxs  
+                        sub_FN, sub_comp_FN = behavior_FN[np.ix_(targets, sources)], behaviorComp_FN[np.ix_(targets, sources)]
+                        units_res_subset_units = units_res.loc[sources, :]
+                                
+                        tmp_df = pd.DataFrame(data=zip(sub_FN     [sub_idxs].mean(axis=0),
+                                                       units_res_subset_units['cortical_area'],
+                                                       np.repeat(wDir, sub_FN.shape[0]),
+                                                       np.repeat(sub_basis, sub_FN.shape[0]),
+                                                       np.repeat('inFG', sub_FN.shape[0]),
+                                                       np.repeat(behavior, sub_FN.shape[0])),
+                                              columns=['Wji', 'input_area', 'In/Out', 'Units Subset', 'FG Member', 'Behavior'])
+                        weights_df = pd.concat((weights_df, tmp_df))
+
+                        tmp_df = pd.DataFrame(data=zip(sub_comp_FN[sub_idxs].mean(axis=0),
+                                                       units_res_subset_units['cortical_area'],
+                                                       np.repeat(wDir, sub_FN.shape[0]),
+                                                       np.repeat(sub_basis, sub_FN.shape[0]),
+                                                       np.repeat('inFG', sub_FN.shape[0]),
+                                                       np.repeat(behaviorComp, sub_FN.shape[0])),
+                                              columns=['Wji', 'input_area', 'In/Out', 'Units Subset', 'FG Member', 'Behavior'])
+                        weights_df = pd.concat((weights_df, tmp_df))
+
+                        tmp_df = pd.DataFrame(data=zip(sub_FN     [np.setdiff1d(np.arange(behavior_FN.shape[0]), sub_idxs)].mean(axis=0),
+                                                       units_res_subset_units['cortical_area'],
+                                                       np.repeat(wDir, sub_FN.shape[0]),
+                                                       np.repeat(sub_basis, sub_FN.shape[0]),
+                                                       np.repeat('outFG', sub_FN.shape[0]),
+                                                       np.repeat(behavior, sub_FN.shape[0])),
+                                              columns=['Wji', 'input_area', 'In/Out', 'Units Subset', 'FG Member', 'Behavior'])
+                        weights_df = pd.concat((weights_df, tmp_df))
+
+                        tmp_df = pd.DataFrame(data=zip(sub_comp_FN[np.setdiff1d(np.arange(behavior_FN.shape[0]), sub_idxs)].mean(axis=0),
+                                                       units_res_subset_units['cortical_area'],
+                                                       np.repeat(wDir, sub_FN.shape[0]),
+                                                       np.repeat(sub_basis, sub_FN.shape[0]),
+                                                       np.repeat('outFG', sub_FN.shape[0]),
+                                                       np.repeat(behaviorComp, sub_FN.shape[0])),
+                                              columns=['Wji', 'input_area', 'In/Out', 'Units Subset', 'FG Member', 'Behavior'])
+                        weights_df = pd.concat((weights_df, tmp_df))
+
+    # plot_wji_distributions_for_subsets(weights_df, paperFig = 'Exploratory_Spont_FNs', figname_mod = '', hue_order_FN=hue_order_FN, palette=palette) 
+    make_in_and_out_weight_distribution_plots(weights_df, behavior='reach1', comp_behavior=gen_test_behavior, hue_order_FN=hue_order_FN, palette=palette, paperFig = None)
+    # plot_trajectory_correlation_and_auc_distributions_for_subsets(auc_df, weights_df, paperFig='Exploratory_Spont_FNs', figname_mod = '', hue_order_FN=hue_order_FN, palette=palette)
+    # plot_modulation_for_subsets(auc_df, paperFig='Exploratory_Spont_FNs', figname_mod = '_all', hue_order_FN=hue_order_FN, palette=palette)
+
+    return weights_df
+
 def examine_all_annotated_FNs(units_res, annotated_FN_dict, 
-                              subset_idxs = None, sub_type = None, subset_basis=['Reach-Specific'], 
+                              subset_idxs = None, sub_type = None, subset_basis=['Reach-Specific'],
+                              gen_test_behavior = None, traj_corr_df = None,
                               hue_order_FN=None, palette=None):
     
     weights_df = pd.DataFrame()
-    FN_df = pd.DataFrame()
+    auc_df = pd.DataFrame()
+    FN_dataframes = dict()
     completed_comps = []
     if subset_idxs is not None:
-        for sub_basis, (behavior, behavior_FN) in product(subset_basis, annotated_FN_dict.items()):
-            for behaviorComp, behaviorComp_FN in annotated_FN_dict.items():
+        for sub_basis in subset_basis: 
+            FN_df = pd.DataFrame()
+            for (behavior, behavior_FN), (behaviorComp, behaviorComp_FN) in product(annotated_FN_dict.items(), annotated_FN_dict.items()):
                                 
                 sub_idxs = subset_idxs.copy()
                 
@@ -1417,302 +1770,80 @@ def examine_all_annotated_FNs(units_res, annotated_FN_dict,
                     sub_idxs = np.array(range(units_res.shape[0]))
                
                 if sub_type == 'both':
-                    sources, sub_FN, sub_comp_FN = sub_idxs, behavior_FN[np.ix_(sub_idxs, sub_idxs)], behaviorComp_FN[np.ix_(sub_idxs, sub_idxs)]
+                    targets, sources, sub_FN, sub_comp_FN = sub_idxs, sub_idxs, behavior_FN[np.ix_(sub_idxs, sub_idxs)], behaviorComp_FN[np.ix_(sub_idxs, sub_idxs)]
                     units_res_subset_units = units_res.loc[sources, :]  
-                # elif sub_type == 'target':
-                #     sources, sub_beh_FN, sub_behComp_FN = sub_idxs, np.arange(FN.shape[1]), FN[np.ix_(sub_idxs, range(FN.shape[1]))], spontFN_for_diff[np.ix_(sub_idxs, range(FN.shape[1]))]
-                #     units_res_subset_units = units_res.loc[targets, :]
-                # elif sub_type == 'source':
-                #     sources, sub_beh_FN, sub_behComp_FN = np.arange(FN.shape[0]), sub_idxs, FN[np.ix_(range(FN.shape[0]), sub_idxs)], spontFN_for_diff[np.ix_(range(FN.shape[0]), sub_idxs)]
-                #     units_res_subset_units = units_res.loc[sources, :]
                                 
                 units_res_sources = units_res.loc[sources, :]
+                units_res_targets = units_res.loc[targets, :]
+
+                subset_unit_names = [int(unit_name) for unit_name in units_res_subset_units['unit_name'].values] 
+                target_unit_names = [int(unit_name) for unit_name in units_res_targets['unit_name'].values]
+
+                correlation_mask  = [True if (unit1 in subset_unit_names and unit2 in subset_unit_names) else False for unit1, unit2 in zip(traj_corr_df['unit1'], traj_corr_df['unit2'])]
+                sub_correlations  = traj_corr_df.loc[correlation_mask, 'Pearson_corr'].values
+                sub_corr_names    = traj_corr_df.loc[correlation_mask, ['unit1', 'unit2']]
+            
+                sub_corr_i = [np.where(np.array(target_unit_names) == unit1)[0][0] for unit1 in sub_corr_names.unit1] 
+                sub_corr_j = [np.where(np.array(target_unit_names) == unit2)[0][0] for unit2 in sub_corr_names.unit2] 
+                
+                sub_corr_array  = np.full_like(sub_FN, 0)
+                for i, j, corr in zip(sub_corr_i, sub_corr_j, sub_correlations):
+                    sub_corr_array[i, j] = corr
+
+                sub_corr_array += sub_corr_array.transpose()
+
                 
                 sub_FN_no_selfEdges      = sub_FN[sub_FN != 0]
                 sub_comp_FN_no_selfEdges = sub_comp_FN[sub_FN != 0]
+                FN_df[f'{behavior}'] = sub_FN_no_selfEdges
                 if behavior == behaviorComp or f'{behaviorComp}_vs_{behavior}' in completed_comps:
                     continue
                 else:
                     completed_comps.append(f'{behavior}_vs_{behaviorComp}')
 
+
                 tmp_df = pd.DataFrame(data=zip(sub_FN_no_selfEdges - sub_comp_FN_no_selfEdges,
                                                np.tile(units_res_sources['cortical_area'], sub_FN.shape[0]),
                                                np.repeat(completed_comps[-1], sub_FN.size),
-                                               np.repeat(sub_basis, sub_FN.size)
+                                               np.repeat(sub_basis, sub_FN.size),
+                                               sub_corr_array.flatten()
                                                ),
-                                      columns=['Wji_diff', 'input_area', 'Comparison_key', 'Units Subset', ])
+                                      columns=['Wji_diff', 'input_area', 'Comparison_key', 'Units Subset', 'pearson_r'])
                 weights_df = pd.concat((weights_df, tmp_df))
-            
-            FN_df[f'{behavior}'] = sub_FN_no_selfEdges
+                
+                if (behaviorComp.lower() == gen_test_behavior.lower() and behavior.lower() == 'reach1') or \
+                   (behavior.lower() == gen_test_behavior.lower() and behaviorComp.lower() == 'reach1'):
+                    tmp_auc_df = pd.DataFrame(data=zip(units_res_subset_units['traj_avgPos_auc'],
+                                                       units_res_subset_units['cortical_area'],
+                                                       units_res_subset_units['modulation_RO'],
+                                                       units_res_subset_units['reach_frate'],
+                                                       units_res_subset_units[f'{gen_test_behavior}_frate'],
+                                                       units_res_subset_units['reach_frate'] / units_res_subset_units[f'{gen_test_behavior}_frate'],
+                                                       np.repeat(sub_basis, units_res_subset_units.shape[0]),
+                                                       units_res_subset_units['quality']),
+                                              columns=['Kinematics_AUC', 
+                                                       'cortical_area', 
+                                                       'mod_RO', 
+                                                       'reach_frate', 
+                                                       f'{gen_test_behavior}_frate',
+                                                       'frate_percent_increase',
+                                                       'Units Subset', 
+                                                       'quality'])
+                    
+                    auc_df = pd.concat((auc_df, tmp_auc_df))
                 
             
-    # if plot_auc_matched:
-    #     auc_df_auc_matched     = auc_df.loc[auc_df['Kinematics_AUC'] >= auc_df.loc[auc_df['Units Subset'] == 'Reach-Specific', 'Kinematics_AUC'].min(), :]
-    #     weights_df_auc_matched = weights_df.loc[weights_df['low_auc'] >= auc_df.loc[auc_df['Units Subset'] == 'Reach-Specific', 'Kinematics_AUC'].min(), :]
-
-    #     plot_wji_distributions_for_subsets(weights_df_auc_matched, paperFig = 'FigS7', figname_mod = '_AUCmatched', hue_order_FN=hue_order_FN, palette=palette)
-    #     plot_trajectory_correlation_and_auc_distributions_for_subsets(auc_df_auc_matched, weights_df_auc_matched, paperFig='FigS7', figname_mod = '_AUCmatched', hue_order_FN=hue_order_FN, palette=palette)
-    #     plot_modulation_for_subsets(auc_df_auc_matched, paperFig='Fig6', figname_mod = '_AUCmatched', hue_order_FN=hue_order_FN, palette=palette)
-    #     # plot_modulation_for_subsets(auc_df_auc_matched, paperFig='modulation', figname_mod = '_AUCmatched_noMUA', hue_order_FN=hue_order_FN, palette=palette)
-
-    # else:   
-    #     auc_df_auc_matched = None
-    #     weights_df_auc_matched = None
-
-    # plot_wji_distributions_for_subsets(weights_df, paperFig = 'Fig5', figname_mod = '', hue_order_FN=hue_order_FN, palette=palette) 
-    # plot_trajectory_correlation_and_auc_distributions_for_subsets(auc_df, weights_df, paperFig='Fig6', figname_mod = '', hue_order_FN=hue_order_FN, palette=palette)
-    # plot_modulation_for_subsets(auc_df, paperFig='Fig6', figname_mod = '_all', hue_order_FN=hue_order_FN, palette=palette)
-    # # plot_modulation_for_subsets(auc_df, paperFig='modulation', figname_mod = '_noMUA', hue_order_FN=hue_order_FN, palette=palette)
-
-
-    return weights_df   
-
-def plot_distributions_after_source_props(units_res, electrode_distances, 
-                                          traj_corr_df, FN_sets = [], annotated_FN_dict = None, 
-                                          ext_FN = None, ret_FN = None, subset_idxs = None, 
-                                          sub_type='both', subset_basis=['Reach-Specific'], 
-                                          good_only=False, plot_auc_matched = True,
-                                          hue_order_FN=None, palette=None):
-    
-    spontFN_for_diff = FN_sets[1][1]
-    weights_df = pd.DataFrame()
-    auc_df = pd.DataFrame()
-    for sub_basis, FN_set in product(subset_basis, FN_sets):
-        
-        sub_idxs = subset_idxs.copy()
-        
-        if 'Non-' in sub_basis:
-            sub_idxs = np.setdiff1d(np.array(range(units_res.shape[0])), sub_idxs)
-        elif sub_basis == 'Full':
-            sub_idxs = np.array(range(units_res.shape[0]))
-        
-        FN_key = FN_set[0]
-        FN_tmp = FN_set[1]
-        
-        # FN_mean = FN_tmp.mean(axis=0) if FN_tmp.ndim == 3 else FN_tmp.copy()
-        if np.ndim(FN_tmp) < 3:
-            FN_tmp = np.expand_dims(FN_tmp, 0)
-            FN_names = ['spontaneousFN']
-        else:
-            FN_names = ['reachFN1', 'reachFN2']
+            FN_dataframes[sub_basis] = FN_df[['Groomed', 'Rest', 'spontaneous', 'Locomation', 
+                                              'Climbing', 'Directed_arm_movement', 
+                                              'extension', 'retraction', 'reach1', 'reach2']]    
             
-        for FN, FN_name in zip(FN_tmp, FN_names):
-            if sub_type == 'both':
-                targets, sources, sub_FN, sub_spontFN = sub_idxs, sub_idxs, FN[np.ix_(sub_idxs, sub_idxs)], spontFN_for_diff[np.ix_(sub_idxs, sub_idxs)]
-                sub_dist = electrode_distances[np.ix_(sub_idxs, sub_idxs)]
-                units_res_subset_units = units_res.loc[sources, :]  
-            elif sub_type == 'target':
-                targets, sources, sub_FN, sub_spontFN = sub_idxs, np.arange(FN.shape[1]), FN[np.ix_(sub_idxs, range(FN.shape[1]))], spontFN_for_diff[np.ix_(sub_idxs, range(FN.shape[1]))]
-                sub_dist = electrode_distances[np.ix_(sub_idxs, range(FN.shape[1]))]
-                units_res_subset_units = units_res.loc[targets, :]
-            elif sub_type == 'source':
-                targets, sources, sub_FN, sub_spontFN = np.arange(FN.shape[0]), sub_idxs, FN[np.ix_(range(FN.shape[0]), sub_idxs)], spontFN_for_diff[np.ix_(range(FN.shape[0]), sub_idxs)]
-                sub_dist = electrode_distances[np.ix_(range(FN.shape[0]), sub_idxs)]
-                units_res_subset_units = units_res.loc[sources, :]
-                        
-            units_res_targets = units_res.loc[targets, :]
-            units_res_sources = units_res.loc[sources, :]
-            
-            subset_unit_names = [int(unit_name) for unit_name in units_res_subset_units['unit_name'].values] 
-            target_unit_names = [int(unit_name) for unit_name in units_res_targets['unit_name'].values]
-            source_unit_names = [int(unit_name) for unit_name in units_res_sources['unit_name'].values]
-    
-            correlation_mask  = [True if (unit1 in subset_unit_names and unit2 in subset_unit_names) else False for unit1, unit2 in zip(traj_corr_df['unit1'], traj_corr_df['unit2'])]
-            sub_correlations  = traj_corr_df.loc[correlation_mask, 'Pearson_corr'].values
-            sub_corr_names    = traj_corr_df.loc[correlation_mask, ['unit1', 'unit2']]
-        
-            sub_corr_i = [np.where(np.array(target_unit_names) == unit1)[0][0] for unit1 in sub_corr_names.unit1] 
-            sub_corr_j = [np.where(np.array(target_unit_names) == unit2)[0][0] for unit2 in sub_corr_names.unit2] 
-            
-            sub_corr_array  = np.full_like(sub_FN, 0)
-            sub_higher_auc  = np.full_like(sub_corr_array, 0)
-            sub_lower_auc   = np.full_like(sub_corr_array, 0)
-            sub_average_auc = np.full_like(sub_corr_array, 0)
-            for i, j, corr, unit1, unit2 in zip(sub_corr_i, sub_corr_j, sub_correlations, sub_corr_names['unit1'], sub_corr_names['unit2']):
-                sub_corr_array[i, j] = corr
-                
-                unit_mask = [True if int(unit_name) in [int(unit1), int(unit2)] else False for unit_name in units_res['unit_name'].values]
-                units_pair_res = units_res.loc[unit_mask, f'{params.primary_traj_model}_auc']
-                
-                sub_higher_auc [i, j] = units_pair_res.max()
-                sub_lower_auc  [i, j] = units_pair_res.min()
-                sub_average_auc[i, j] = units_pair_res.mean()
-                
-            sub_corr_array += sub_corr_array.transpose()
-            sub_higher_auc += sub_higher_auc.transpose()
-            sub_lower_auc += sub_lower_auc.transpose()
-            sub_average_auc += sub_average_auc.transpose()        
-            
-            if good_only:
-                units_res_subset_units = units_res_subset_units.loc[units_res_subset_units['quality'] == 'good', :]  
-                good_targets = np.where(units_res_targets['quality'] == 'good')[0]
-                good_sources = np.where(units_res_sources['quality'] == 'good')[0]
-                units_res_targets = units_res_targets.iloc[good_targets, :]
-                units_res_sources = units_res_sources.iloc[good_sources, :]
-                sub_FN   = sub_FN  [good_targets, good_sources]
-                sub_dist = sub_dist[good_targets, good_sources]
-                sub_corr_array = sub_corr_array[good_targets, good_sources]
-                sub_higher_auc = sub_higher_auc[good_targets, good_sources]
-                sub_lower_auc = sub_lower_auc[good_targets, good_sources]
-                sub_average_auc = sub_average_auc[good_targets, good_sources]
-    
-            
-            tmp_df = pd.DataFrame(data=zip(sub_FN.flatten(),
-                                           sub_FN.flatten() - sub_spontFN.flatten(),
-                                           np.abs(sub_FN.flatten() - sub_spontFN.flatten()),
-                                           np.tile(units_res_sources['cortical_area'], sub_FN.shape[0]),
-                                           np.repeat(FN_name, sub_FN.size),
-                                           np.repeat(sub_basis, sub_FN.size),
-                                           sub_corr_array.flatten(),
-                                           sub_higher_auc.flatten(),
-                                           sub_lower_auc.flatten(),
-                                           sub_average_auc.flatten(),
-                                           sub_dist.flatten()), 
-                                  columns=['Wji', 'Wji_diff', 'absolute_Wji_diff', 'input_area', 'FN_key', 'Units Subset', 
-                                           'pearson_r', 'high_auc', 'low_auc', 'avg_auc', 'Distance'])
-            tmp_df = tmp_df.loc[tmp_df['Wji'] != 0, :]
-            tmp_df['pearson_r_squared'] = tmp_df['pearson_r']**2
-            weights_df = pd.concat((weights_df, tmp_df))
-            
-            if annotated_FN_dict:
-                for behavior, behavior_FN in annotated_FN_dict.items():
-                    if sub_type == 'both':
-                        sub_FN = behavior_FN[np.ix_(sub_idxs, sub_idxs)]
-                    elif sub_type == 'target':
-                        sub_FN = behavior_FN[np.ix_(sub_idxs, range(behavior_FN.shape[1]))]
-                    elif sub_type == 'source':
-                        sub_FN = behavior_FN[np.ix_(range(behavior_FN.shape[0]), sub_idxs)]
+            make_FN_similarity_plots(FN_dataframes[sub_basis], sub_basis)
 
-    
-            if FN_name == 'reachFN1':
-                tmp_auc_df = pd.DataFrame(data=zip(units_res_subset_units['traj_avgPos_auc'],
-                                                   units_res_subset_units['cortical_area'],
-                                                   units_res_subset_units['percent_frate_increase'],
-                                                   units_res_subset_units['modulation_RO'],
-                                                   units_res_subset_units['modulation_RP'],
-                                                   units_res_subset_units['modulation_RE'],
-                                                   units_res_subset_units['maxDev_RO'],
-                                                   units_res_subset_units['maxDev_RP'],
-                                                   units_res_subset_units['maxDev_RE'],
-                                                   units_res_subset_units['reach_frate'],
-                                                   units_res_subset_units['spontaneous_frate'],
-                                                   units_res_subset_units['extension_frate'],
-                                                   units_res_subset_units['retraction_frate'],
-                                                   units_res_subset_units['rest_frate'],
-                                                   units_res_subset_units['groomed_frate'],
-                                                   units_res_subset_units['directed_arm_movement_frate'],
-                                                   units_res_subset_units['locomation_frate'],
-                                                   units_res_subset_units['climbing_frate'],
-                                                   np.repeat(sub_basis, units_res_subset_units.shape[0]),
-                                                   units_res_subset_units['quality']),
-                                          columns=['Kinematics_AUC', 'cortical_area', 'frate_percent_increase', 
-                                                   'mod_RO', 'mod_RP', 'mod_RE', 'dev_RO', 'dev_RP', 'dev_RE', 
-                                                   'reach_frate', 'spont_frate', 'extension_frate', 'retraction_frate', 
-                                                   'rest_frate', 'groomed_frate', 'arm_movements_frate', 'locomation_frate',
-                                                   'climbing_frate', 'Units Subset', 'quality'])
-                auc_df = pd.concat((auc_df, tmp_auc_df))
-    if plot_auc_matched:
-        auc_df_auc_matched     = auc_df.loc[auc_df['Kinematics_AUC'] >= auc_df.loc[auc_df['Units Subset'] == 'Reach-Specific', 'Kinematics_AUC'].min(), :]
-        weights_df_auc_matched = weights_df.loc[weights_df['low_auc'] >= auc_df.loc[auc_df['Units Subset'] == 'Reach-Specific', 'Kinematics_AUC'].min(), :]
+    # plot_wji_distributions_for_subsets(weights_df, paperFig = 'Exploratory_Spont_FNs', figname_mod = '', hue_order_FN=hue_order_FN, palette=palette) 
+    plot_trajectory_correlation_and_auc_distributions_for_subsets(auc_df, weights_df, paperFig='Exploratory_Spont_FNs', figname_mod = '', hue_order_FN=hue_order_FN, palette=palette)
+    plot_modulation_for_subsets(auc_df, paperFig='Exploratory_Spont_FNs', figname_mod = '_all', hue_order_FN=hue_order_FN, palette=palette)
 
-        plot_wji_distributions_for_subsets(weights_df_auc_matched, paperFig = 'FigS7', figname_mod = '_AUCmatched', hue_order_FN=hue_order_FN, palette=palette)
-        plot_trajectory_correlation_and_auc_distributions_for_subsets(auc_df_auc_matched, weights_df_auc_matched, paperFig='FigS7', figname_mod = '_AUCmatched', hue_order_FN=hue_order_FN, palette=palette)
-        plot_modulation_for_subsets(auc_df_auc_matched, paperFig='Fig6', figname_mod = '_AUCmatched', hue_order_FN=hue_order_FN, palette=palette)
-        # plot_modulation_for_subsets(auc_df_auc_matched, paperFig='modulation', figname_mod = '_AUCmatched_noMUA', hue_order_FN=hue_order_FN, palette=palette)
-
-    else:   
-        auc_df_auc_matched = None
-        weights_df_auc_matched = None
-
-    plot_wji_distributions_for_subsets(weights_df, paperFig = 'Fig5', figname_mod = '', hue_order_FN=hue_order_FN, palette=palette) 
-    plot_trajectory_correlation_and_auc_distributions_for_subsets(auc_df, weights_df, paperFig='Fig6', figname_mod = '', hue_order_FN=hue_order_FN, palette=palette)
-    plot_modulation_for_subsets(auc_df, paperFig='Fig6', figname_mod = '_all', hue_order_FN=hue_order_FN, palette=palette)
-    # plot_modulation_for_subsets(auc_df, paperFig='modulation', figname_mod = '_noMUA', hue_order_FN=hue_order_FN, palette=palette)
-
-
-    return weights_df, auc_df, weights_df_auc_matched, auc_df_auc_matched
-        
-def feature_correlation_plot(units_res, x_key, y_key, hue_key=None, col_key=None, paperFig='unknown'):
-    
-    if 'W_in' in x_key and marmcode=='TY':
-        xmin, xmax = 0, 0.12
-        xrange = units_res[x_key].max() - units_res[x_key].min() 
-        xmin, xmax = units_res[x_key].min() - xrange*.1, units_res[x_key].max() + xrange*.1
-
-    else:
-        xrange = units_res[x_key].max() - units_res[x_key].min() 
-        xmin, xmax = units_res[x_key].min() - xrange*.1, units_res[x_key].max() + xrange*.1    
-    yrange = units_res[y_key].max() - units_res[y_key].min() 
-    ymin, ymax = units_res[y_key].min()-yrange*.1, units_res[y_key].max()+yrange*.1
-
-    try:
-        xlabel = [f'{lab}' for lab, key in zip(['Trajectory AUC', 'Full kinematics AUC', 'Velocity AUC', 'Short kinematics AUC', 
-                                                'Kinematics + reachFN AUC', 'Kinematics + spontaneousFN \ngeneralization AUC',
-                                                '$W_{{ji}}$', 'Average in-weight', 'Squared pearson correlation', 
-                                                'AUC added by FN', 'Average AUC'], 
-                                               ['traj', 'traj_avgPos', 'shortTraj', 'shortTraj_avgPos', 
-                                                'traj_avgPos_reach_FN', 'traj_avgPos_spont_train_reach_test_FN',
-                                                'Wji', 'W_in', 'pearson_r_squared', 'FN_auc_improvement', 
-                                                'avg_auc']) if x_key in [key, f'{key}_auc']][0]
-    except:
-        xlabel = x_key
-    
-    try:
-        ylabel = [f'{lab}' for lab, key in zip(['Trajectory AUC', 'Full kinematics AUC', 'Velocity AUC', 'Short kinematics AUC', 
-                                                'Kinematics + reachFN AUC', 'Kinematics + spontaneousFN \ngeneralization AUC',
-                                                '$W_{{ji}}$', 'Average in-weight', 'Squared pearson correlation', 
-                                                'AUC added by FN', 'Average AUC'], 
-                                               ['traj', 'traj_avgPos', 'shortTraj', 'shortTraj_avgPos', 
-                                                'traj_avgPos_reach_FN', 'traj_avgPos_spont_train_reach_test_FN',
-                                                'Wji', 'W_in', 'pearson_r_squared', 'FN_auc_improvement', 
-                                                'avg_auc']) if y_key in [key, f'{key}_auc']][0]
-    except:
-        ylabel = y_key
-    
-    if col_key is not None:
-        fig = sns.relplot(data = units_res, x=x_key, y=y_key, 
-                          col=col_key, kind='scatter', legend=True, 
-                          height = plot_params.feature_corr_figSize[1], 
-                          aspect = plot_params.feature_corr_figSize[0]/plot_params.feature_corr_figSize[1])
-        for ax in fig.axes[0]:
-            col_value = ax.title.get_text().split(' = ')[-1]
-            tmp_units_res = units_res.loc[units_res[col_key] == col_value, [x_key, y_key]]
-            slope, intercept, r, p, stderr = linregress(tmp_units_res[x_key], tmp_units_res[y_key])
-            line = f'r = {r:.2f}'
-            ax.text((xmax+xmin)/2, ymax, line, horizontalalignment='center', fontsize = plot_params.tick_fontsize)
-            ax.plot(tmp_units_res[x_key], intercept + slope * tmp_units_res[x_key], label=line, 
-                    linestyle='solid', color='black', linewidth=plot_params.traj_linewidth)
-            # ax.legend(loc='upper center')
-            ax.set_xlim(xmin, xmax)
-            ax.set_ylim(ymin, ymax)
-        plot_name = f'{marmcode}_feature_correlation_{x_key}_{y_key}_columns_{col_key}.png'
-    else:
-        fig, ax = plt.subplots(figsize = plot_params.feature_corr_figSize, dpi = plot_params.dpi)
-        try:
-            sns.scatterplot(ax = ax, data = units_res, x = x_key, y = y_key, color=plot_params.corr_marker_color,
-                            hue = hue_key, s = plot_params.feature_corr_markersize, legend=False)
-        except:
-            sns.scatterplot(ax = ax, data = units_res, x = x_key, y = y_key, color=plot_params.corr_marker_color,
-                            s = plot_params.feature_corr_markersize, legend=False)        
-        slope, intercept, r, p, stderr = linregress(units_res[x_key], units_res[y_key])
-        line = f'r = {r:.2f}'
-        ax.text((xmax+xmin)/2, ymax, line, horizontalalignment='center', fontsize = plot_params.tick_fontsize)
-        ax.plot(units_res[x_key], intercept + slope * units_res[x_key], label=line,
-                linestyle='solid', color='black', linewidth=plot_params.traj_linewidth)
-        # ax.legend(bbox_to_anchor=(1.1, 0.5), loc='center left', 
-        #           labels  = [line], 
-        #           title_fontsize = plot_params.axis_fontsize,
-        #           fontsize = plot_params.tick_fontsize)
-        sns.despine(ax=ax)
-        ax.set_ylabel(ylabel)
-        ax.set_xlabel(xlabel)
-        ax.set_xlim(xmin, xmax)
-        ax.set_ylim(ymin, ymax)
-
-        plot_name = f'{marmcode}_feature_correlation_{x_key}_{y_key}.png'
-    
-    plt.show()
-    fig.savefig(os.path.join(plots, paperFig, plot_name), bbox_inches='tight', dpi=plot_params.dpi)
+    return weights_df           
 
 def compute_performance_difference_by_unit(units_res, model_1, model_2):
     
@@ -1736,14 +1867,22 @@ def compute_performance_difference_by_unit(units_res, model_1, model_2):
     return diff_df
 
 def find_reach_specific_group(diff_df, model_1, model_2, paperFig = 'FigS5'):
-    full_res_model_1 = results_dict[params.best_lead_lag_key]['model_results'][model_1]['AUC']
-    full_res_model_2 = results_dict[params.best_lead_lag_key]['model_results'][model_2]['AUC']
     
-    nTests = full_res_model_1.shape[1]
+    try:
+        full_res_model_1 = results_dict[params.best_lead_lag_key]['model_results'][model_1]['AUC']
+    except:
+        full_res_model_1 = generalization_results[params.best_lead_lag_key]['model_results'][model_1]['AUC']
+
+    try:
+        full_res_model_2 = results_dict[params.best_lead_lag_key]['model_results'][model_2]['AUC']
+    except:
+        full_res_model_2 = generalization_results[params.best_lead_lag_key]['model_results'][model_2]['AUC'] 
+    
+    nTests = np.min([full_res_model_1.shape[1], full_res_model_2.shape[1]])
     proportion = []
     pval = []
     for unit_model1, unit_model2 in zip(full_res_model_1, full_res_model_2):        
-        n2over1 = (unit_model2 > unit_model1).sum()
+        n2over1 = (unit_model2[:nTests] > unit_model1[:nTests]).sum()
         
         sign_test = binomtest(n2over1, nTests, p = 0.5, alternative='greater')
         proportion.append(np.round(sign_test.proportion_estimate, 2))
@@ -1757,7 +1896,7 @@ def find_reach_specific_group(diff_df, model_1, model_2, paperFig = 'FigS5'):
     sorted_diff_df = diff_df.sort_values(by='auc_diff', ascending=False)
     sorted_diff_df['dist_positive_grad'] = np.hstack((np.abs(np.diff(sorted_diff_df['dist_from_unity'])),
                                                       [np.nan]))     
-    medFilt_grad = median_filter(sorted_diff_df['dist_positive_grad'], 9)
+    medFilt_grad = median_filter(sorted_diff_df['dist_positive_grad'], 13) #TODO
     lastUnit = np.where(medFilt_grad < 0.075 * np.nanmax(medFilt_grad))[0][0]
     
     plot_mult = 10 if marmcode == 'TY' else 5
@@ -1787,6 +1926,51 @@ def find_reach_specific_group(diff_df, model_1, model_2, paperFig = 'FigS5'):
     params.reach_specific_thresh = sorted_diff_df['dist_from_unity'].iloc[lastUnit-1:lastUnit+1].mean()
 
     return reach_specific_units_byStats, non_specific_units_byStats     
+
+def plot_FN_differences(FN1, FN2, CS_FN1, CS_FN2, CI_FN1, CI_FN2, 
+                        paperFig, FN_labels, hue_order_FN=None, palette=None):
+    
+    set1_list = [FN1, CS_FN1, CI_FN1]
+    set2_list = [FN2, CS_FN2, CI_FN2]
+    labels = ['Full', 'Reach-Specific', 'Non-Specific']
+    
+    diff_df = pd.DataFrame()
+    for f1, f2, label in zip(set1_list, set2_list, labels):
+        diff_data = f1.flatten() - f2.flatten()
+        label_list = [label for i in range(diff_data.shape[0])]
+        
+        tmp_df = pd.DataFrame(data = zip(diff_data, label_list),
+                              columns = ['w_diff', 'Units Subset'])
+        
+        diff_df = pd.concat((diff_df, tmp_df), axis=0, ignore_index=True)
+    
+    #------------------------------------------------------------------------------------
+    
+    fig, ax = plt.subplots(figsize = plot_params.distplot_figsize)
+    sns.kdeplot(data=diff_df, ax=ax, x='w_diff', 
+                hue='Units Subset', hue_order = hue_order_FN, palette=palette,
+                cumulative=True, common_norm=False, bw_adjust=0.05, linewidth=plot_params.distplot_linewidth)
+    ax.legend(bbox_to_anchor=(1.1, 0.5), loc='center left',
+              handles = ax.lines[::-1],
+              labels  = hue_order_FN, 
+              title_fontsize = plot_params.axis_fontsize,
+              fontsize = plot_params.tick_fontsize)
+    sns.despine(ax=ax)
+    ax.set_yticks([0, 1])
+    ax.set_xlabel(f'$W_{{ji}}$ ({FN_labels[0]}) - $W_{{ji}}$ ({FN_labels[1]})')
+    plt.show()
+    fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_w_diff_cumulative_dist_reachFN1_minus_spont'), bbox_inches='tight', dpi=plot_params.dpi)
+    med_out = median_test(diff_df.loc[(diff_df['Units Subset'] == 'Reach-Specific') , 'w_diff'], 
+                          diff_df.loc[(diff_df['Units Subset'] == 'Non-Specific'), 'w_diff'])
+    print(f'Wji-Difference_reachFN1:  reach-spec vs non-spec, p={np.round(med_out[1], 4)}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
+    med_out = median_test(diff_df.loc[(diff_df['Units Subset'] == 'Reach-Specific')  , 'w_diff'], 
+                          diff_df.loc[(diff_df['Units Subset'] == 'Full')    , 'w_diff'])
+    print(f'Wji-Difference_reachFN1:  reach-spec vs full, p={np.round(med_out[1], 4)}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
+    med_out = median_test(diff_df.loc[(diff_df['Units Subset'] == 'Non-Specific') , 'w_diff'], 
+                          diff_df.loc[(diff_df['Units Subset'] == 'Full')  , 'w_diff'])
+    print(f'Wji-Difference_reachFN1:  non-spec vs full, p={np.round(med_out[1], 4)}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
+        
+    return   
 
 def compute_and_analyze_pathlets(lead_lag_key, model, numplots):
     
@@ -1842,137 +2026,12 @@ def compute_and_analyze_pathlets(lead_lag_key, model, numplots):
         if 'velTraj_samp' in locals():
             velTraj_samples.append(velTraj_samp)
     
-    if numplots is not None:
-
-        axlims_good = plot_pathlet(posTraj_mean, posTraj_samples, lead_lag_key, model, avgPos_mean = avgPos_mean, unit_selector = 'max', numToPlot = numplots, unitsToPlot = None, axlims = None)
-        _           = plot_pathlet(posTraj_mean, posTraj_samples, lead_lag_key, model, unit_selector = 'min', numToPlot = numplots, unitsToPlot = None, axlims = axlims_good)
-
     pathDivergence_mean = np.mean(pathDivergence, axis = 0)    
     
     if 'velTraj_mean' not in locals():
         velTraj_mean = []
 
     return posTraj_mean, velTraj_mean, posTraj_samples, velTraj_samples  
-    
-def plot_pathlet(posTraj_mean, posTraj_samples, lead_lag_key, model, avgPos_mean = None, unit_selector = 'max', numToPlot = 5, unitsToPlot = None, axlims = None, paperFig='unknown'):
-    
-    all_units_res = results_dict[lead_lag_key]['all_models_summary_results']  
-    traj_auc = all_units_res['%s_auc' % model].to_numpy()
-    
-    lead = float(re.findall(re.compile('lead_[0-9]{1,3}'), lead_lag_key)[0].split('_')[-1]) * 1e-3
-    lag  = float(re.findall(re.compile('lag_[0-9]{1,3}' ), lead_lag_key)[0].split('_')[-1]) * 1e-3
-    
-    if unitsToPlot is None:
-        if unit_selector == 'max':
-            units = np.argpartition(traj_auc, -1*numToPlot)[-1*numToPlot:]
-            units = units[np.argsort(traj_auc[units])]
-            units = units[::-1]
-        elif unit_selector == 'min':
-            units = np.argpartition(traj_auc, numToPlot)[:numToPlot]
-            units = units[np.argsort(traj_auc[units])]
-    else:
-        units = unitsToPlot
-    
-    if axlims is None:
-        pathlets_min_xyz = np.empty((numToPlot, 3))
-        pathlets_max_xyz = np.empty((numToPlot, 3))
-        for plotIdx, unit in enumerate(units):
-            pathlets_min_xyz[plotIdx] = np.min(posTraj_mean[..., unit], axis = 0)
-            pathlets_max_xyz[plotIdx] = np.max(posTraj_mean[..., unit], axis = 0)
-        
-        min_xyz = np.min(pathlets_min_xyz, axis = 0)
-        max_xyz = np.max(pathlets_max_xyz, axis = 0)
-    else:
-        min_xyz = axlims[0]
-        max_xyz = axlims[1]
-    
-    for unit in units:
-        # title = '(%s) Unit %d' %(unit_selector, unit) 
-        
-        leadSamp = round(lead / (lead + lag) * posTraj_mean.shape[0])
-        fig = plt.figure(figsize = (4.95, 4.5))
-        ax = plt.axes(projection='3d')
-        for sampPath in posTraj_samples:
-            ax.plot3D(sampPath[:leadSamp + 1, 0, unit], sampPath[:leadSamp + 1, 1, unit], sampPath[:leadSamp + 1, 2, unit], 'blue')
-            ax.plot3D(sampPath[leadSamp:    , 0, unit], sampPath[leadSamp:    , 1, unit], sampPath[leadSamp:    , 2, unit], 'red')
-        ax.plot3D(posTraj_mean[:leadSamp + 1, 0, unit], posTraj_mean[:leadSamp + 1, 1, unit], posTraj_mean[:leadSamp + 1, 2, unit], 'black', linewidth=3)
-        ax.plot3D(posTraj_mean[leadSamp:, 0, unit], posTraj_mean[leadSamp:, 1, unit], posTraj_mean[leadSamp:, 2, unit], 'black', linewidth=3)
-        # ax.set_title(title, fontsize = 16, fontweight = 'bold')
-        ax.set_xlim(min_xyz[0], max_xyz[0])
-        ax.set_ylim(min_xyz[1], max_xyz[1])
-        ax.set_zlim(min_xyz[2], max_xyz[2])
-        # ax.set_xticklabels([])
-        # ax.set_yticklabels([])
-        # ax.set_zticklabels([])
-        # ax.set_xlabel('x', fontsize = plot_params.axis_fontsize)
-        # ax.set_ylabel('y', fontsize = plot_params.axis_fontsize)
-        # ax.set_zlabel('z', fontsize = plot_params.axis_fontsize)
-        ax.set_xlabel('', fontsize = plot_params.axis_fontsize)
-        ax.set_ylabel('', fontsize = plot_params.axis_fontsize)
-        ax.set_zlabel('', fontsize = plot_params.axis_fontsize)
-        # ax.legend(['lead', 'lag'], loc='upper right', bbox_to_anchor=(1, 1), fontsize = 14, shadow=False)
-        ax.w_xaxis.line.set_color('black')
-        ax.w_yaxis.line.set_color('black')
-        ax.w_zaxis.line.set_color('black')
-        ax.view_init(28, 148)
-        plt.show()
-        
-        fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_unit_%d_pathlet.png' % unit), bbox_inches='tight', dpi=plot_params.dpi)
-
-    
-    if unit_selector == 'max':
-        
-        fig1 = plt.figure(figsize = (4.95, 4.5))
-        ax1  = plt.axes(projection='3d')
-        fig2 = plt.figure(figsize = (4.95, 4.5))
-        ax2  = plt.axes(projection='3d')
-        for unit in range(posTraj_mean.shape[-1]):
-            # title = '(%s) Unit %d' %(unit_selector, unit) 
-            
-            posTraj_plus_avgPos = posTraj_mean[..., unit]
-            posTraj_plus_avgPos = posTraj_plus_avgPos - posTraj_plus_avgPos.mean(axis=0) + avgPos_mean[0, :, unit] 
-            
-            leadSamp = round(lead / (lead + lag) * posTraj_mean.shape[0])
-            ax1.plot3D(posTraj_mean[:leadSamp + 1, 0, unit], posTraj_mean[:leadSamp + 1, 1, unit], posTraj_mean[:leadSamp + 1, 2, unit], 'blue', linewidth=1)
-            ax1.plot3D(posTraj_mean[leadSamp:    , 0, unit], posTraj_mean[leadSamp:    , 1, unit], posTraj_mean[leadSamp:    , 2, unit], 'red' , linewidth=1)
-            ax2.plot3D(posTraj_plus_avgPos[:leadSamp + 1, 0], posTraj_plus_avgPos[:leadSamp + 1, 1], posTraj_plus_avgPos[:leadSamp + 1, 2], 'blue', linewidth=1)
-            ax2.plot3D(posTraj_plus_avgPos[leadSamp:    , 0], posTraj_plus_avgPos[leadSamp:    , 1], posTraj_plus_avgPos[leadSamp:    , 2], 'red' , linewidth=1)
-            
-            # ax.set_title(title, fontsize = 16, fontweight = 'bold')
-            # ax.set_xlim(min_xyz[0], max_xyz[0])
-            # ax.set_ylim(min_xyz[1], max_xyz[1])
-            # ax.set_zlim(min_xyz[2], max_xyz[2])
-            # ax.set_xticklabels([])
-            # ax.set_yticklabels([])
-            # ax.set_zticklabels([])
-            ax1.set_xlabel('x', fontsize = plot_params.axis_fontsize)
-            ax1.set_ylabel('y', fontsize = plot_params.axis_fontsize)
-            ax1.set_zlabel('z', fontsize = plot_params.axis_fontsize)
-            ax2.set_xlabel('x', fontsize = plot_params.axis_fontsize)
-            ax2.set_ylabel('y', fontsize = plot_params.axis_fontsize)
-            ax2.set_zlabel('z', fontsize = plot_params.axis_fontsize)            # ax.set_xlabel('', fontsize = plot_params.axis_fontsize)
-            # ax.set_ylabel('', fontsize = plot_params.axis_fontsize)
-            # ax.set_zlabel('', fontsize = plot_params.axis_fontsize)
-            # ax.legend(['lead', 'lag'], loc='upper right', bbox_to_anchor=(1, 1), fontsize = 14, shadow=False)
-            ax1.w_xaxis.line.set_color('black')
-            ax1.w_yaxis.line.set_color('black')
-            ax1.w_zaxis.line.set_color('black')
-            ax1.view_init(28, 148)
-            
-            ax2.w_xaxis.line.set_color('black')
-            ax2.w_yaxis.line.set_color('black')
-            ax2.w_zaxis.line.set_color('black')
-            ax2.view_init(28, 148)
-        plt.show() 
-        
-        # fig1.savefig(os.path.join(plots, 'all_units_pathlets_noPos.png'), bbox_inches='tight', dpi=plot_params.dpi)
-        # fig2.savefig(os.path.join(plots, 'all_units_pathlets_withPos.png'), bbox_inches='tight', dpi=plot_params.dpi)
-
-
-    if unitsToPlot is not None: 
-        print(traj_auc[unitsToPlot[0]])
-    
-    return (min_xyz, max_xyz)
 
 def compute_and_analyze_trajectory_correlations(units_res, posTraj_mean, velTraj_mean, 
                                                 electrode_distances, lead_lag_key, FN=None, mode = 'concat', 
@@ -2097,94 +2156,9 @@ def compute_and_analyze_trajectory_correlations(units_res, posTraj_mean, velTraj
                                  'target_reach_FN_dependent', 'source_reach_FN_dependent'])
 
     df['r_squared'] = df['Pearson_corr']**2
-
-    fig, ax = plt.subplots(figsize = plot_params.feature_corr_figSize, dpi = plot_params.dpi)
-    sns.scatterplot(ax = ax, data = df, x = 'Pearson_corr', y = 'Wji', s = plot_params.feature_corr_markersize, 
-                    color=plot_params.corr_marker_color, legend=False) 
-    ax.set_xlabel('Preferred trajectory\ncorrelation')
-    ax.set_ylabel('$W_{{ji}}$')  
-    # ax.tick_params(width=plot_params.tick_width, length = plot_params.tick_length*2, labelsize = plot_params.tick_fontsize)
-    sns.despine(ax=ax)
-    plt.show()
-    fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_wji_vs_pearson_r.png'), bbox_inches='tight', dpi=plot_params.dpi)
     
     return df
-
-def plot_FN_differences(FN, spontaneous_FN, reach_specific_reachFNs, reach_specific_spontFN, 
-                        non_specific_reachFNs, non_specific_spontFN, paperFig, hue_order_FN=None, palette=None):
-    reach_set1_list = [         FN[0], reach_specific_reachFNs[0], non_specific_reachFNs[0]]
-    reach_set2_list = [         FN[1], reach_specific_reachFNs[1], non_specific_reachFNs[1]]
-    spont_list      = [spontaneous_FN, reach_specific_spontFN[0] , non_specific_spontFN[0]] 
-    labels = ['Full', 'Reach-Specific', 'Non-Specific']
-    
-    diff_df = pd.DataFrame()
-    for rFN1, rFN2, sFN, label in zip(reach_set1_list, reach_set2_list, spont_list, labels):
-        diff_data = np.concatenate((np.abs(rFN1.flatten() - sFN.flatten()),
-                                    np.abs(rFN2.flatten() - sFN.flatten())),
-                                   axis=0)
-        label_list = [label for i in range(diff_data.shape[0])]
-        set_list   = ['reachFN1' for i in range(rFN1.size)] + ['reachFN2' for i in range(rFN2.size)]
         
-        tmp_df = pd.DataFrame(data = zip(diff_data, label_list, set_list),
-                              columns = ['w_diff', 'Units Subset', 'Reach Set'])
-        
-        diff_df = pd.concat((diff_df, tmp_df), axis=0, ignore_index=True)
-    
-    #------------------------------------------------------------------------------------
-    
-    fig, ax = plt.subplots(figsize = plot_params.distplot_figsize)
-    sns.kdeplot(data=diff_df[diff_df['Reach Set'] == 'reachFN1'], ax=ax, x='w_diff', 
-                hue='Units Subset', hue_order = hue_order_FN, palette=palette,
-                cumulative=True, common_norm=False, bw_adjust=0.05, linewidth=plot_params.distplot_linewidth)
-    ax.legend(bbox_to_anchor=(1.1, 0.5), loc='center left',
-              handles = ax.lines[::-1],
-              labels  = hue_order_FN, 
-              title_fontsize = plot_params.axis_fontsize,
-              fontsize = plot_params.tick_fontsize)
-    sns.despine(ax=ax)
-    ax.set_yticks([0, 1])
-    ax.set_xlabel('|$W_{{ji}}$ (reachFN) - $W_{{ji}}$ (spontaneousFN)|')
-    plt.show()
-    fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_w_diff_cumulative_dist_reachFN1_minus_spont'), bbox_inches='tight', dpi=plot_params.dpi)
-    med_out = median_test(diff_df.loc[(diff_df['Units Subset'] == 'Reach-Specific') & (diff_df['Reach Set'] == 'reachFN1') , 'w_diff'], 
-                          diff_df.loc[(diff_df['Units Subset'] == 'Non-Specific')   & (diff_df['Reach Set'] == 'reachFN1') , 'w_diff'])
-    print(f'Wji-Difference_reachFN1:  reach-spec vs non-spec, p={np.round(med_out[1], 4)}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
-    med_out = median_test(diff_df.loc[(diff_df['Units Subset'] == 'Reach-Specific') & (diff_df['Reach Set'] == 'reachFN1') , 'w_diff'], 
-                          diff_df.loc[(diff_df['Units Subset'] == 'Full')   & (diff_df['Reach Set'] == 'reachFN1') , 'w_diff'])
-    print(f'Wji-Difference_reachFN1:  reach-spec vs full, p={np.round(med_out[1], 4)}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
-    med_out = median_test(diff_df.loc[(diff_df['Units Subset'] == 'Non-Specific') & (diff_df['Reach Set'] == 'reachFN1') , 'w_diff'], 
-                          diff_df.loc[(diff_df['Units Subset'] == 'Full')   & (diff_df['Reach Set'] == 'reachFN1') , 'w_diff'])
-    print(f'Wji-Difference_reachFN1:  non-spec vs full, p={np.round(med_out[1], 4)}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
-        
-    #------------------------------------------------------------------------------------   
-    
-    fig, ax = plt.subplots(figsize = plot_params.distplot_figsize)
-    sns.kdeplot(data=diff_df[diff_df['Reach Set'] == 'reachFN2'], ax=ax, x='w_diff', 
-                hue='Units Subset', hue_order = hue_order_FN, palette=palette, 
-                cumulative=True, common_norm=False, bw_adjust=0.05, linewidth=plot_params.distplot_linewidth)
-    ax.legend(bbox_to_anchor=(1.1, 0.5), loc='center left', 
-              handles = ax.lines[::-1],
-              labels  = hue_order_FN, 
-              title_fontsize = plot_params.axis_fontsize,
-              fontsize = plot_params.tick_fontsize)
-    ax.set_yticks([0, 1])
-    ax.set_xlabel('|$W_{{ji}}$ (reachFN) - $W_{{ji}}$ (spontaneousFN)|')
-    sns.despine(ax=ax)
-    plt.show()
-    fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_w_diff_cumulative_dist_reachFN2_minus_spont'), bbox_inches='tight', dpi=plot_params.dpi)
-    med_out = median_test(diff_df.loc[(diff_df['Units Subset'] == 'Reach-Specific') & (diff_df['Reach Set'] == 'reachFN2') , 'w_diff'], 
-                          diff_df.loc[(diff_df['Units Subset'] == 'Non-Specific')   & (diff_df['Reach Set'] == 'reachFN2') , 'w_diff'])
-    print(f'Wji-Difference_reachFN2:  reach-spec vs non-spec, p={np.round(med_out[1], 4)}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
-    med_out = median_test(diff_df.loc[(diff_df['Units Subset'] == 'Reach-Specific') & (diff_df['Reach Set'] == 'reachFN2') , 'w_diff'], 
-                          diff_df.loc[(diff_df['Units Subset'] == 'Full')   & (diff_df['Reach Set'] == 'reachFN2') , 'w_diff'])
-    print(f'Wji-Difference_reachFN2:  reach-spec vs full, p={np.round(med_out[1], 4)}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
-    med_out = median_test(diff_df.loc[(diff_df['Units Subset'] == 'Non-Specific') & (diff_df['Reach Set'] == 'reachFN2') , 'w_diff'], 
-                          diff_df.loc[(diff_df['Units Subset'] == 'Full')   & (diff_df['Reach Set'] == 'reachFN2') , 'w_diff'])
-    print(f'Wji-Difference_reachFN2:  non-spec vs full, p={np.round(med_out[1], 4)}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
-        
-    #------------------------------------------------------------------------------------
-
-    return           
 
 def add_all_FNs_to_annotated_dict(FN, spontaneous_FN, annotated_FN_dict=None, ext_FN=None, ret_FN=None):
     
@@ -2204,25 +2178,16 @@ def add_all_FNs_to_annotated_dict(FN, spontaneous_FN, annotated_FN_dict=None, ex
     
 if __name__ == "__main__":
     
-    os.makedirs(plots, exist_ok=True)
-    
-    # with open(pkl_infile, 'rb') as f:
-    #     results_dict = dill.load(f)  
-
-    # with open(pkl_addstatsfile, 'rb') as f:
-    #     results_dict_add_stats = dill.load(f)  
+    os.makedirs(plots, exist_ok=True) 
     
     results_dict = load_dict_from_hdf5(pkl_infile.with_suffix('.h5'), top_level_list=False, convert_4d_array_to_list = True)
     results_dict_add_stats = load_dict_from_hdf5(pkl_addstatsfile.with_suffix('.h5'), top_level_list=False, convert_4d_array_to_list = True)
-        
+    generalization_results = load_dict_from_hdf5(gen_results_file)
+    
     with NWBHDF5IO(nwb_infile, 'r') as io:
         nwb = io.read()
         FN = nwb.scratch[params.FN_key].data[:] 
         spontaneous_FN = nwb.scratch['spontaneous_FN'].data[:]
-    # with NWBHDF5IO(reach_seg_nwbfile, 'r') as io:
-    #     nwb = io.read()
-    #     ext_FN = nwb.scratch[ 'extension_FN'].data[:] 
-    #     ret_FN = nwb.scratch['retraction_FN'].data[:] 
 
     with NWBHDF5IO(annotated_nwbfile, 'r') as io_ann:
         annotated_nwb = io_ann.read()
@@ -2233,6 +2198,13 @@ if __name__ == "__main__":
         ext_FN = annotated_nwb.scratch[ 'extension_FN'].data[:] 
         ret_FN = annotated_nwb.scratch['retraction_FN'].data[:] 
 
+    with NWBHDF5IO(single_reach_nwbfile, 'r') as io_single:
+        single_nwb = io_single.read()
+        single_reaches_FN_dict = dict() 
+        for key in single_nwb.scratch.keys():
+            if key not in ['all_reach_FN', 'split_reach_FNs', 'spontaneous_FN', 'spikes_chronological', 'split_FNs_reach_sets', 'extension_FN', 'retraction_FN']:
+                single_reaches_FN_dict[key] = single_nwb.scratch[key].data[:]
+
     annotated_FN_dict = add_all_FNs_to_annotated_dict(FN, spontaneous_FN, annotated_FN_dict, ext_FN, ret_FN)
 
     summarize_model_results(units=None, lead_lag_keys = params.best_lead_lag_key)
@@ -2241,18 +2213,12 @@ if __name__ == "__main__":
     units_res = add_in_weight_to_units_df(units_res, FN.copy())
     
     units_res = add_modulation_data_to_units_df(units_res)
+    units_res = add_generalization_experiments_to_units_df(units_res, generalization_results[params.best_lead_lag_key])
     
     # if marmcode == 'TY':
         # units_res = add_icms_results_to_units_results_df(units_res, params.icms_res)
     
     electrode_distances = get_interelectrode_distances_by_unit(units_res, array_type='utah')
-
-    if not skip_network_permutations:
-        train_auc_df = evaluate_effect_of_network_shuffles(lead_lag_key = params.best_lead_lag_key, 
-                                                           comparison_model = 'traj_avgPos_reach_FN', 
-                                                           kin_only_model=params.kin_only_model, all_samples=False, 
-                                                           targets=None, ylim=(0,33), paperFig = 'Fig4', 
-                                                           plot_difference = False, alpha=0.01, palette='ylgn_dark_fig4')
         
     _, cmin, cmax = plot_functional_networks(FN, units_res, FN_key = params.FN_key, paperFig='Fig1')
     _, _, _       = plot_functional_networks(spontaneous_FN, units_res, FN_key ='spontaneous_FN', paperFig='Fig1', cmin=cmin, cmax=cmax)
@@ -2260,64 +2226,77 @@ if __name__ == "__main__":
     _, _, _       = plot_functional_networks(ret_FN, units_res, FN_key ='retraction_FN', paperFig='extension_retraction_FNs', cmin=cmin, cmax=cmax)
     for behavior, behavior_FN in annotated_FN_dict.items():
         _, _, _ = plot_functional_networks(behavior_FN, units_res, FN_key = behavior, paperFig='Exploratory_Spont_FNs', cmin=cmin, cmax=cmax)
+    for key, single_FN in single_reaches_FN_dict.items():
+        _, _, _ = plot_functional_networks(single_FN, units_res, FN_key = key, paperFig='Exploratory_Spont_FNs', cmin=cmin, cmax=cmax)
 
 
     # _, cmin, cmax =plot_functional_networks(spontaneous_FN, units_res, FN_key ='spontaneous_FN')
     # _, cmin, cmax = plot_functional_networks(FN, units_res, FN_key = params.FN_key, cmin=cmin, cmax=cmax)
 
     ymin, ymax = plot_weights_versus_interelectrode_distances(FN, spontaneous_FN, 
-                                                              electrode_distances, paperFig='Fig1',
-                                                              palette='FN_palette')
-    ymin, ymax = plot_weights_versus_interelectrode_distances(FN, spontaneous_FN, 
                                                               electrode_distances, 
                                                               annotated_FN_dict=annotated_FN_dict,
                                                               paperFig='Exploratory_Spont_FNs',
                                                               palette=None)
-    ymin, ymax = plot_weights_versus_interelectrode_distances(FN, spontaneous_FN, 
-                                                              electrode_distances, 
-                                                              extend_retract_FNs=[ext_FN, ret_FN],
-                                                              paperFig='extension_retraction_FNs',
-                                                              palette=None)    
+    # ymin, ymax = plot_weights_versus_interelectrode_distances(FN, spontaneous_FN, 
+    #                                                           electrode_distances, 
+    #                                                           extend_retract_FNs=[ext_FN, ret_FN],
+    #                                                           paperFig='extension_retraction_FNs',
+    #                                                           palette=None)    
+    
     style_key = None
-    plotted_on_map_record = []
-    model_list_x = [       'traj',    'position',          'traj_avgPos']
-    model_list_y = ['traj_avgPos', 'traj_avgPos', 'traj_avgPos_reach_FN']
-    fig_list     = [       'FigS3',    'unknown',                 'FigS3']
-    for model_x, model_y, fignum in zip(model_list_x, model_list_y, fig_list):    
-        sign_test = plot_model_auc_comparison(units_res, model_x, model_y, 
-                                              minauc = 0.45, maxauc = 0.8, hue_key='W_in', style_key=style_key, 
-                                              targets = None, col_key = None, paperFig=fignum, asterisk='')
-        print(f'{model_y} v {model_x}, NO_tuning_filter: p={np.round(sign_test.pvalue, 4)}, nY={sign_test.k}, nUnits={sign_test.n}, prop={np.round(sign_test.proportion_estimate, 2)}')
-        if model_y not in plotted_on_map_record:
-            plot_result_on_channel_map(units_res, jitter_radius = .2, hue_key='W_in', 
-                                       size_key = model_y,  title_type = 'size', style_key=style_key,
-                                       paperFig=fignum, palette=None, sizes=(6, 20), hue_order=None)
-            plotted_on_map_record.append(model_y)
-    
-    units_res_completely_untuned_units_filtered = units_res.loc[units_res['shuffled_traj_pval']<0.01/units_res.shape[0], :]
-    model_list_x = ['shortTraj', 'shortTraj_avgPos']
-    model_list_y = [     'traj',      'traj_avgPos']
-    fig_list     = [     'Fig2',             'Fig2']
-    for model_x, model_y, fignum in zip(model_list_x, model_list_y, fig_list):    
-        sign_test = plot_model_auc_comparison(units_res_completely_untuned_units_filtered, model_x, model_y, 
-                                              minauc = 0.45, maxauc = 0.8, hue_key='W_in', style_key=style_key, 
-                                              targets = None, col_key = None, paperFig=fignum, asterisk='*')
-        print(f'{model_y} v {model_x}, YES_tuning_filter: p={np.round(sign_test.pvalue, 4)}, nY={sign_test.k}, nUnits={sign_test.n}, prop={np.round(sign_test.proportion_estimate, 2)}')
+    for gen_exp in units_res.columns:
+        if 'reach_test_FN_auc' not in gen_exp or 'traj_avgPos' not in gen_exp:
+            continue
+        print(gen_exp)
+        diff_df = compute_performance_difference_by_unit(units_res, gen_exp, 'traj_avgPos_reach_FN_auc')   
+        # reach_specific_units = diff_df.index[(diff_df.auc_diff > 0) & (diff_df.dist_from_unity > params.reach_specific_thresh) & (diff_df.dist_from_unity < 0.04)]
+        reach_specific_units, non_specific_units = find_reach_specific_group(diff_df,
+                                                                             gen_exp.split('_auc')[0], 
+                                                                             'traj_avgPos_reach_FN',
+                                                                             paperFig = 'Exploratory_Spont_FNs')
+        
+        reach_specific_units_res = units_res.loc[reach_specific_units, :]
+        non_specific_units_res   = units_res.loc[non_specific_units, :]
+        
+        units_res['Units Subset'] = ['Non-Specific' for idx in range(units_res.shape[0])]
+        units_res.loc[reach_specific_units, 'Units Subset'] = ['Reach-Specific' for idx in range(reach_specific_units.size)]
 
+        plot_model_auc_comparison   (units_res, gen_exp, 'traj_avgPos_reach_FN_auc', 
+                                     minauc = 0.45, maxauc = 0.8, hue_key='Units Subset', hue_order=('Reach-Specific', 'Non-Specific'), 
+                                     style_key=style_key, targets = None, paperFig='Exploratory_Spont_FNs', palette=fig6_palette)
+        
+        plot_model_auc_comparison   (units_res, 'traj_avgPos_spont_train_reach_test_FN_auc', 'traj_avgPos_reach_FN_auc', 
+                                     minauc = 0.45, maxauc = 0.8, hue_key='Units Subset', hue_order=('Reach-Specific', 'Non-Specific'), 
+                                     style_key=style_key, targets = None, paperFig='Exploratory_Spont_FNs', palette=fig6_palette)
+        
+        
+    # diff_df = compute_performance_difference_by_unit(units_res, 'traj_avgPos_spont_train_reach_test_FN_auc', 'traj_avgPos_reach_FN_auc')   
+    # # reach_specific_units = diff_df.index[(diff_df.auc_diff > 0) & (diff_df.dist_from_unity > params.reach_specific_thresh) & (diff_df.dist_from_unity < 0.04)]
+    # reach_specific_units, non_specific_units = find_reach_specific_group(diff_df,
+    #                                                                      'traj_avgPos_spont_train_reach_test_FN', 
+    #                                                                      'traj_avgPos_reach_FN',
+    #                                                                      paperFig = 'FigS6')
 
-    
-    diff_df = compute_performance_difference_by_unit(units_res, 'traj_avgPos_spont_train_reach_test_FN_auc', 'traj_avgPos_reach_FN_auc')   
+    gen_test_behavior = 'climbing'  
+    full_gen_behavior_map = dict(armMove='directed_arm_movement', spont='spontaneous', climbing='climbing', rest='rest')
+    full_test_behavior = full_gen_behavior_map[gen_test_behavior]
+    diff_df = compute_performance_difference_by_unit(units_res, f'traj_avgPos_{gen_test_behavior}_train_reach_test_FN_auc', 'traj_avgPos_reach_FN_auc')   
     # reach_specific_units = diff_df.index[(diff_df.auc_diff > 0) & (diff_df.dist_from_unity > params.reach_specific_thresh) & (diff_df.dist_from_unity < 0.04)]
     reach_specific_units, non_specific_units = find_reach_specific_group(diff_df,
-                                                                         'traj_avgPos_spont_train_reach_test_FN', 
+                                                                         f'traj_avgPos_{gen_test_behavior}_train_reach_test_FN', 
                                                                          'traj_avgPos_reach_FN',
                                                                          paperFig = 'FigS6')
     
-    posTraj_mean, velTraj_mean, posTraj_samples, velTraj_samples = compute_and_analyze_pathlets(params.best_lead_lag_key, 'traj_avgPos', numplots = None)
-    traj_corr_df = compute_and_analyze_trajectory_correlations(units_res, posTraj_mean, velTraj_mean, 
-                                                               electrode_distances, params.best_lead_lag_key, 
-                                                               FN = FN, mode='concat', paperFig='Fig3',
-                                                               reach_specific_units = reach_specific_units, nplots=None)
+    reach_specific_units_res = units_res.loc[reach_specific_units, :]
+    non_specific_units_res   = units_res.loc[non_specific_units, :]
+    
+    units_res['Units Subset'] = ['Non-Specific' for idx in range(units_res.shape[0])]
+    units_res.loc[reach_specific_units, 'Units Subset'] = ['Reach-Specific' for idx in range(reach_specific_units.size)]
+    
+    plot_model_auc_comparison   (units_res, f'traj_avgPos_{gen_test_behavior}_train_reach_test_FN_auc', 'traj_avgPos_reach_FN_auc', 
+                                 minauc = 0.45, maxauc = 0.8, hue_key='Units Subset', hue_order=('Reach-Specific', 'Non-Specific'), 
+                                 style_key=style_key, targets = None, paperFig='Fig5', palette=fig6_palette)
     
     subset = 'both'
     reach_specific_reachFNs, _, _ = plot_functional_networks(FN, units_res, FN_key = params.FN_key, cmin=cmin, cmax=cmax, 
@@ -2344,85 +2323,63 @@ if __name__ == "__main__":
         _, _, _ = plot_functional_networks(behavior_FN, units_res, FN_key = behavior, paperFig='Exploratory_Spont_FNs', 
                                            subset_idxs = non_specific_units, subset_type=subset, cmin=cmin, cmax=cmax)
 
-    reach_specific_units_res = units_res.loc[reach_specific_units, :]
-    non_specific_units_res   = units_res.loc[non_specific_units, :]
+    posTraj_mean, velTraj_mean, posTraj_samples, velTraj_samples = compute_and_analyze_pathlets(params.best_lead_lag_key, 'traj_avgPos', numplots = None)
+    traj_corr_df = compute_and_analyze_trajectory_correlations(units_res, posTraj_mean, velTraj_mean, 
+                                                               electrode_distances, params.best_lead_lag_key, 
+                                                               FN = FN, mode='concat', paperFig='Exploratory_Spont_FNs',
+                                                               reach_specific_units = reach_specific_units, nplots=None)
+    
+        
+    in_out_weights_df = plot_in_and_out_weights_of_functional_groups(units_res, 
+                                                                     annotated_FN_dict,
+                                                                     outside_group_only = True,
+                                                                     subset_idxs = reach_specific_units, 
+                                                                     subset_basis=['Reach-Specific', 'Non-Specific', 'Full'], 
+                                                                     gen_test_behavior=full_test_behavior,
+                                                                     hue_order_FN=['Reach-Specific', 'Non-Specific', 'Full'], 
+                                                                     palette=fig6_palette)
 
-    weights_df, auc_df, weights_df_auc_matched, auc_df_auc_matched =plot_distributions_after_source_props(units_res, 
-                                                                                                          electrode_distances,
-                                                                                                          traj_corr_df,
-                                                                                                          FN_sets = [('split_reach_FNs', FN), ('spontaneous_FN', spontaneous_FN)], 
-                                                                                                          subset_idxs = reach_specific_units, 
-                                                                                                          sub_type='both', 
-                                                                                                          subset_basis=['Reach-Specific', 'Non-Specific', 'Full'],
-                                                                                                          good_only=False,
-                                                                                                          plot_auc_matched=True,
-                                                                                                          hue_order_FN = ['Reach-Specific', 'Non-Specific', 'Full'],
-                                                                                                          palette = fig6_palette)
-    
-    
-    units_res['Units Subset'] = ['Non-Specific' for idx in range(units_res.shape[0])]
-    units_res.loc[reach_specific_units, 'Units Subset'] = ['Reach-Specific' for idx in range(reach_specific_units.size)]
+    weights_df = examine_all_annotated_FNs(units_res, 
+                                           annotated_FN_dict,
+                                           traj_corr_df = traj_corr_df,
+                                           subset_idxs = reach_specific_units, 
+                                           sub_type = 'both', 
+                                           subset_basis=['Reach-Specific', 'Non-Specific', 'Full'], 
+                                           gen_test_behavior=full_test_behavior,
+                                           hue_order_FN=['Reach-Specific', 'Non-Specific', 'Full'], palette=fig6_palette)
+
 
     plot_result_on_channel_map(units_res, jitter_radius = .2, hue_key='Units Subset', 
                                size_key = None,  title_type = 'hue', style_key=style_key,
                                paperFig='Fig6', hue_order = ['Reach-Specific', 'Non-Specific'], 
                                palette=fig6_palette, sizes=None, s=13)
 
-    # plot_FN_differences(FN, spontaneous_FN, reach_specific_reachFNs, reach_specific_spontFN, 
-    #                     non_specific_reachFNs, non_specific_spontFN, paperFig='Fig5', 
-    #                     hue_order_FN = ['Reach-Specific', 'Non-Specific', 'Full'], palette=fig6_palette)
+    
+    completed_comps = []
+    for (behavior1, FN1), (behavior2, FN2) in product(annotated_FN_dict.items(), annotated_FN_dict.items()):
+        # if behavior1 == behavior2 or f'{behavior2}_vs_{behavior1}' in completed_comps:
+        #     continue
+        # else:
+        #     completed_comps.append(f'{behavior1}_vs_{behavior2}')
+            
+        if not (behavior1 == 'reach1' and behavior2.lower() == full_test_behavior):
+            continue
+        
+        CS_FN1, _, _ = plot_functional_networks(FN1, units_res, FN_key = behavior1, paperFig='Exploratory_Spont_FNs', 
+                                                subset_idxs = reach_specific_units, subset_type=subset, cmin=cmin, cmax=cmax)
+        CS_FN2, _, _ = plot_functional_networks(FN2, units_res, FN_key = behavior2, paperFig='Exploratory_Spont_FNs', 
+                                                subset_idxs = reach_specific_units, subset_type=subset, cmin=cmin, cmax=cmax)
+        CI_FN1, _, _ = plot_functional_networks(FN1, units_res, FN_key = behavior1, paperFig='Exploratory_Spont_FNs', 
+                                                subset_idxs = non_specific_units, subset_type=subset, cmin=cmin, cmax=cmax)
+        CI_FN2, _, _ = plot_functional_networks(FN2, units_res, FN_key = behavior2, paperFig='Exploratory_Spont_FNs', 
+                                                subset_idxs = non_specific_units, subset_type=subset, cmin=cmin, cmax=cmax)
+        
+        plot_FN_differences(FN1, FN2, CS_FN1[0], CS_FN2[0], CI_FN1[0], CI_FN2[0], 
+                            paperFig='Exploratory_Spont_FNs', FN_labels=[behavior1, behavior2], 
+                            hue_order_FN = ['Reach-Specific', 'Non-Specific', 'Full'], palette=fig6_palette)
+
                                       
-    plot_model_auc_comparison   (units_res, 'traj_avgPos_auc', 'traj_avgPos_reach_FN_auc', 
-                                 minauc = 0.45, maxauc = 0.8, hue_key='Units Subset', hue_order=('Reach-Specific', 'Non-Specific'), 
-                                 style_key=style_key, targets = None, paperFig='FigS7', palette=fig6_palette)
-    plot_model_auc_comparison   (units_res, 'spontaneous_FN_auc', 'reach_FN_auc', 
-                                 minauc = 0.45, maxauc = 0.8, hue_key='Units Subset', hue_order=('Reach-Specific', 'Non-Specific'), 
-                                 style_key=style_key, targets = None, paperFig='unknown', palette=fig6_palette)
     plot_model_auc_comparison   (units_res, 'traj_avgPos_spont_train_reach_test_FN_auc', 'traj_avgPos_reach_FN_auc', 
                                  minauc = 0.45, maxauc = 0.8, hue_key='Units Subset', hue_order=('Reach-Specific', 'Non-Specific'), 
                                  style_key=style_key, targets = None, paperFig='Fig5', palette=fig6_palette)
 
-    plot_model_auc_comparison   (units_res, 'shortTraj_avgPos', 'traj_avgPos', minauc = 0.45, maxauc = 0.8, hue_key='Units Subset', 
-                                 hue_order=('Reach-Specific', 'Non-Specific'), style_key=style_key, targets = None, paperFig='unknown', palette=fig6_palette)
-    plot_model_auc_comparison   (units_res, 'shortTraj', 'traj', minauc = 0.45, maxauc = 0.8, hue_key='Units Subset', 
-                                 hue_order=('Reach-Specific', 'Non-Specific'), style_key=style_key, targets = None, paperFig='unknown', palette=fig6_palette)
-    
-    units_res['FN_auc_improvement']     = units_res['traj_avgPos_reach_FN_auc'] - units_res['traj_avgPos_auc']
-    units_res['FN_percent_improvement'] = (units_res['traj_avgPos_reach_FN_auc'] - units_res['traj_avgPos_auc']) / units_res['traj_avgPos_auc']
-    
-    feature_correlation_plot(units_res, 'W_in', 'traj_avgPos_auc', paperFig='Fig3')
-    feature_correlation_plot(units_res, 'snr', 'W_in', col_key=None, paperFig = 'FigS4')    
-    feature_correlation_plot(units_res, 'fr', 'W_in', col_key=None, paperFig = 'FigS4')    
-    feature_correlation_plot(units_res, 'snr', 'traj_avgPos_reach_FN_auc', col_key=None, paperFig = 'FigS4')    
-    feature_correlation_plot(units_res, 'fr', 'traj_avgPos_reach_FN_auc', col_key=None, paperFig = 'FigS4')    
-    feature_correlation_plot(units_res, 'fr', 'traj_avgPos_auc', col_key=None, paperFig = 'FigS4')    
-    feature_correlation_plot(units_res, 'snr', 'traj_avgPos_auc', col_key=None, paperFig = 'FigS4')    
-
-    # feature_correlation_plot(units_res.loc[units_res['quality'] == 'good'], 'fr', 'traj_avgPos_auc', col_key=None)
-    # feature_correlation_plot(units_res.loc[units_res['quality'] == 'good'], 'fr', 'traj_avgPos_auc', col_key='cortical_area')
-    # feature_correlation_plot(units_res.loc[units_res['quality'] == 'good'], 'fr', 'traj_avgPos_reach_FN_auc', col_key='cortical_area')
-    feature_correlation_plot(weights_df.loc[(weights_df['FN_key']=='reachFN1'), :], 'avg_auc', 'pearson_r_squared', col_key=None, paperFig = 'FigS3')    
-    # feature_correlation_plot(weights_df.loc[(weights_df['FN_key']=='reachFN1'), :], 'Distance', 'pearson_r', col_key=None, paperFig = 'unknown')    
-    feature_correlation_plot(units_res, 'W_in', 'FN_auc_improvement', paperFig='FigS3')
-    feature_correlation_plot(units_res, 'traj_avgPos_auc', 'FN_auc_improvement', paperFig='FigS3')
-
-    # feature_correlation_plot(units_res, 'traj_avgPos_auc', 'modulation_RO', paperFig='unknown')
-    # feature_correlation_plot(units_res, 'traj_avgPos_auc', 'percent_frate_increase', paperFig='unknown')
-
-    # feature_correlation_plot(units_res, 'W_in', 'FN_percent_improvement', paperFig='unknown')
-    # feature_correlation_plot(units_res, 'traj_avgPos_auc', 'FN_percent_improvement', paperFig='unknown')
-    
-    
-    # stats for figure 2 summary plot
-    model_list_x = [  'shortTraj',        'traj', 'shortTraj_avgPos', 'traj_avgPos_shuffled_spikes', 'traj_avgPos_shuffled_traj']
-    model_list_y = ['traj_avgPos', 'traj_avgPos',      'traj_avgPos',                 'traj_avgPos',               'traj_avgPos']
-    fig_list     = [    'unknown',     'unknown',          'unknown',                     'unknown',                   'unknown']
-    for model_x, model_y, fignum in zip(model_list_x, model_list_y, fig_list):    
-        sign_test = plot_model_auc_comparison(units_res_completely_untuned_units_filtered, model_x, model_y, 
-                                              minauc = 0.45, maxauc = 0.8, hue_key='W_in', style_key=style_key, 
-                                              targets = None, col_key = None, paperFig=fignum, asterisk='')
-        print(f'{model_y} v {model_x}, YES_tuning_filter: p={np.round(sign_test.pvalue, 4)}, nY={sign_test.k}, nUnits={sign_test.n}, prop={np.round(sign_test.proportion_estimate, 2)}')
-
-    if save_kinModels_pkl:
-        with open(pkl_outfile, 'wb') as f:
-            dill.dump(results_dict, f, recurse=True) 
