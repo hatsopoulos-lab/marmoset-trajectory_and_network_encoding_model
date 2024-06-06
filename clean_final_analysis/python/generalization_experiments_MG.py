@@ -31,7 +31,7 @@ from utils import get_interelectrode_distances_by_unit, load_dict_from_hdf5, sav
 pkl_in_tag  = 'kinematic_models_summarized'
 pkl_out_tag = 'generalization_experiments_LocClimbCombined' 
 
-marmcode = 'TY'
+marmcode = 'MG'
 debugging = False
 
 if marmcode=='TY':
@@ -39,6 +39,7 @@ if marmcode=='TY':
     annotated_nwbfile =  nwb_infile.parent / f'{nwb_infile.stem}_annotated_with_reach_segments_LocClimbCombined{nwb_infile.suffix}'
 elif marmcode=='MG':
     nwb_infile   = data_path / 'MG' / 'MG20230416_1505_mothsAndFree-002_processed_DM_with_functional_networks.nwb'
+    annotated_nwbfile =  nwb_infile.parent / f'{nwb_infile.stem}_annotated_with_reach_segments_LocClimbCombined{nwb_infile.suffix}'
 
 pkl_infile   = nwb_infile.parent / f'{nwb_infile.stem.split("_with_functional_networks")[0]}_{pkl_in_tag}.pkl'
 hdf_outfile  = nwb_infile.parent / f'{nwb_infile.stem.split("_with_functional_networks")[0]}_{pkl_out_tag}.h5'

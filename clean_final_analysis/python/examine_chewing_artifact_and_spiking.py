@@ -35,7 +35,7 @@ sys.path.insert(0, str(code_path))
 from hatlab_nwb_functions import get_sorted_units_and_apparatus_kinematics_with_metadata   
 from utils import choose_units_for_model
 
-marm = 'TY'
+marm = 'MG'
 
 if marm == 'TY':
     nwb_infile   = data_path / 'TY' / 'TY20210211_freeAndMoths-003_resorted_20230612_DM_with_functional_networks.nwb'
@@ -46,6 +46,7 @@ if marm == 'TY':
 elif marm == 'MG':
     nwb_infile  = data_path / 'MG' / 'MG20230416_1505_mothsAndFree-002_processed_DM_with_functional_networks.nwb'
     annotation  = data_path / 'MG' / 'spontaneous_behavior_annotation_MG20230416.csv'
+    nwb_acqfile = data_path / 'MG' / 'MG20230416_1505_mothsAndFree-002_acquisition.nwb'
     bad_units_list = [181, 440]
     mua_to_fix = [745, 796]
 
@@ -114,13 +115,12 @@ if __name__ == "__main__":
         for data_key, data in nwb.processing['video_event_timestamps_moths'].data_interfaces.items():
             event_timestamps[data_key] = data.timestamps[:]
 
-    first_event, last_event = 180, 187 #180, 187
-    raw_samples_start = int(event_timestamps[f'moths_s_1_e_{first_event}_timestamps'][0]*30000) 
-    raw_samples_end   = int(event_timestamps[f'moths_s_1_e_{last_event}_timestamps'][-1]*30000) 
     # raw_samples_end   = int(event_timestamps[f'moths_s_1_e_{last_event}_timestamps'][0]*30000) + 1000
-
     
     if mode == 'all_chans':
+        first_event, last_event = 180, 187 #180, 187
+        raw_samples_start = int(event_timestamps[f'moths_s_1_e_{first_event}_timestamps'][0]*30000) 
+        raw_samples_end   = int(event_timestamps[f'moths_s_1_e_{last_event}_timestamps'][-1]*30000) 
         with NWBHDF5IO(nwb_acqfile, 'r') as io_acq:
             nwb_acq = io_acq.read()
             
@@ -342,7 +342,7 @@ if __name__ == "__main__":
                  if channel_idx == chans[0]:
                      chew_df = pd.DataFrame(data=zip(raw_timestamps[results_full[2].astype(int)], raw_timestamps[results_full[2].astype(int)]),
                                             columns=['start', 'end'])
-                     chew_df.to_hdf(data_path /'TY'/'chewing_times.h5', key='timestamps')
+                     chew_df.to_hdf(data_path / marm /'chewing_times.h5', key='timestamps')
          
            # for channel_data in channel_data_list:
            #     if len(channel_data['unit_class']) == 0:

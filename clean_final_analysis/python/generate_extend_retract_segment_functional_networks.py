@@ -28,6 +28,7 @@ from hatlab_nwb_functions import get_sorted_units_and_apparatus_kinematics_with_
 from utils import choose_units_for_model
 
 marm = 'TY'
+merge_loc_and_climb = True
 
 if marm == 'TY':
     nwb_infile   = data_path / 'TY' / 'TY20210211_freeAndMoths-003_resorted_20230612_DM_with_functional_networks.nwb'
@@ -44,9 +45,9 @@ elif marm == 'MG':
     bad_units_list = [181, 440]
     mua_to_fix = [745, 796]
 
-nwb_outfile = nwb_infile.parent / f'{nwb_infile.stem}_annotated_with_reach_segments{nwb_infile.suffix}'    
+nwb_outfile = nwb_infile.parent / f'{nwb_infile.stem}_annotated_with_reach_segments_LocClimbCombined{nwb_infile.suffix}'    
 
-frates_outfile = nwb_infile.parent / f'{nwb_infile.stem}_combined_average_firing_rates.h5' 
+frates_outfile = nwb_infile.parent / f'{nwb_infile.stem}_combined_average_firing_rates_LocClimbCombined.h5' 
 
 class params:
     frate_thresh = 2
@@ -277,7 +278,10 @@ def create_binarized_rasters(units, reaches, kin_module, nwb, chew_df=None, reac
     if mode == 'ann_spont':
         annotation_data = pd.read_csv(annotation)
         annotation_data.loc[(annotation_data['Class'] == 4) | (annotation_data['Class'] == 9), 'Class'] = 5
-        annotation_data.loc[(annotation_data['Class_app'] == 4) | (annotation_data['Class_app'] == 9), 'Class_app'] = 5
+        if merge_loc_and_climb:
+            annotation_data.loc[(annotation_data['Class'] == 3), 'Class'] = 2
+        if marm == 'TY':
+            annotation_data.loc[(annotation_data['Class_app'] == 4) | (annotation_data['Class_app'] == 9), 'Class_app'] = 5
         
         free_cams_timestamps = nwb.processing['video_event_timestamps_free'].data_interfaces['free_s_1_e_001_timestamps'].timestamps[:]
         behavior_dict = dict(zip([str(entry) for entry in annotation_data['class_options'][:10]], [dict() for entry in range(10)])) 
@@ -297,26 +301,26 @@ def create_binarized_rasters(units, reaches, kin_module, nwb, chew_df=None, reac
             
             start_times = free_cams_timestamps[start_frames]
             stop_times  = free_cams_timestamps[stop_frames]         
-
-            for event in annotation_data['Event'].unique():
-                event_ann = annotation_data.loc[(annotation_data['Event']     == event) & \
-                                                (annotation_data['Class_app'] == class_num), 
-                                                ['Start_app', 'Stop_app']]
-                if event_ann.shape[0] > 0:
-                    event_timestamps = nwb.processing['video_event_timestamps_moths'].data_interfaces[f'moths_s_1_e_{str(int(event)).zfill(3)}_timestamps'].timestamps[:]
-                    app_stop_frames = event_ann['Stop_app'].values.astype(int)
-                    app_stop_frames[app_stop_frames == -1] = len(event_timestamps)-1 
-                    app_start_frames = event_ann['Start_app'].values.astype(int)
-    
-                    video_active_idxs = np.where(app_start_frames < app_stop_frames)[0]                 
-                    app_start_frames = app_start_frames[video_active_idxs]
-                    app_stop_frames  = app_stop_frames [video_active_idxs]
-                    
-                    if len(app_start_frames) > 0:
-                        app_stop_times  = event_timestamps[app_stop_frames]
-                        app_start_times = event_timestamps[app_start_frames]
-                        stop_times  = np.hstack((stop_times , app_stop_times))
-                        start_times = np.hstack((start_times, app_start_times))
+            if marm == 'TY':
+                for event in annotation_data['Event'].unique():
+                    event_ann = annotation_data.loc[(annotation_data['Event']     == event) & \
+                                                    (annotation_data['Class_app'] == class_num), 
+                                                    ['Start_app', 'Stop_app']]
+                    if event_ann.shape[0] > 0:
+                        event_timestamps = nwb.processing['video_event_timestamps_moths'].data_interfaces[f'moths_s_1_e_{str(int(event)).zfill(3)}_timestamps'].timestamps[:]
+                        app_stop_frames = event_ann['Stop_app'].values.astype(int)
+                        app_stop_frames[app_stop_frames == -1] = len(event_timestamps)-1 
+                        app_start_frames = event_ann['Start_app'].values.astype(int)
+        
+                        video_active_idxs = np.where(app_start_frames < app_stop_frames)[0]                 
+                        app_start_frames = app_start_frames[video_active_idxs]
+                        app_stop_frames  = app_stop_frames [video_active_idxs]
+                        
+                        if len(app_start_frames) > 0:
+                            app_stop_times  = event_timestamps[app_stop_frames]
+                            app_start_times = event_timestamps[app_start_frames]
+                            stop_times  = np.hstack((stop_times , app_stop_times))
+                            start_times = np.hstack((start_times, app_start_times))
                         
             segments_df = pd.DataFrame(data = zip(start_times, stop_times, stop_times - start_times),
                                        columns = ['start_time', 'stop_time', 'duration']) 
@@ -524,8 +528,9 @@ def compute_average_firing_rates(reach_raster_list, spontaneous_raster_list,
                 
                 total_time += rast.shape[1] * params.binwidth*1e-3
             
-            average_fr = [spkCount / total_time for spkCount in total_spikes]
-            average_frates[behavior] = average_fr
+            if total_time>0:
+                average_fr = [spkCount / total_time for spkCount in total_spikes]
+                average_frates[behavior] = average_fr
     
     if extension_raster_list:
         total_spikes = [0 for i in range(extension_raster_list[0].shape[0])]
@@ -589,7 +594,8 @@ if __name__ == "__main__":
                                      retraction_raster_list=retraction_raster_list)
     
         for behavior, single_behavior_dict in annotated_behavior_dict.items():
-            single_behavior_dict['FN'] = make_FN(single_behavior_dict['raster_list'], metric=params.FN_metric, plot=True, self_edge=False, norm=False, mode='all')
+            if len(single_behavior_dict['raster_list']) > 0:
+                single_behavior_dict['FN'] = make_FN(single_behavior_dict['raster_list'], metric=params.FN_metric, plot=True, self_edge=False, norm=False, mode='all')
         
         extension_FN          = make_FN(extension_raster_list      , metric=params.FN_metric, plot=True, self_edge=False, norm=False, mode='all')
         retraction_FN         = make_FN(retraction_raster_list     , metric=params.FN_metric, plot=True, self_edge=False, norm=False, mode='all')
@@ -613,8 +619,9 @@ if __name__ == "__main__":
         # plot_functional_networks(FN['spontaneous_FN'], units_res=None, FN_key ='spontaneous_FN', cmin=cmin, cmax=cmax)
 
         for behavior, single_behavior_dict in annotated_behavior_dict.items():
-            # plot_functional_networks(single_behavior_dict['FN'], units_res=None, FN_key = behavior, cmin=cmin, cmax=cmax)            
-            nwb.add_scratch(single_behavior_dict['FN'], name = behavior, description=f'Functional network for {behavior}. Generated using {params.binwidth} ms bins, FN_metric = {params.FN_metric}, and transposed so target units vary in the first dimension (rows) and input units in the columns')
+            if len(single_behavior_dict['raster_list']) > 0:
+                # plot_functional_networks(single_behavior_dict['FN'], units_res=None, FN_key = behavior, cmin=cmin, cmax=cmax)            
+                nwb.add_scratch(single_behavior_dict['FN'], name = behavior, description=f'Functional network for {behavior}. Generated using {params.binwidth} ms bins, FN_metric = {params.FN_metric}, and transposed so target units vary in the first dimension (rows) and input units in the columns')
         
         nwb.add_scratch(extension_FN , name =  'extension_FN',           description= 'Functional network for extension segments of reaches. Generated using %d ms bins, FN_metric = %s, and transposed so target units vary in the first dimension (rows) and input units in the columns' % (params.binwidth, params.FN_metric))
         nwb.add_scratch(retraction_FN, name = 'retraction_FN',           description='Functional network for retraction segments of reaches. Generated using %d ms bins, FN_metric = %s, and transposed so target units vary in the first dimension (rows) and input units in the columns' % (params.binwidth, params.FN_metric))

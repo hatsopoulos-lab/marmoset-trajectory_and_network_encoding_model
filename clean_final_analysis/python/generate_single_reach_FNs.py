@@ -27,7 +27,7 @@ sys.path.insert(0, str(code_path))
 from hatlab_nwb_functions import get_sorted_units_and_apparatus_kinematics_with_metadata   
 from utils import choose_units_for_model
 
-marm = 'TY'
+marm = 'MG'
 
 if marm == 'TY':
     nwb_infile   = data_path / 'TY' / 'TY20210211_freeAndMoths-003_resorted_20230612_DM_with_functional_networks.nwb'

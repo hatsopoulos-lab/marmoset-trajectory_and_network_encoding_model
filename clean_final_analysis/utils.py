@@ -40,7 +40,11 @@ def choose_units_for_model(units, quality_key = 'snr', quality_thresh = 3, frate
     
     units = units.loc[(quality > quality_thresh) | (units.quality == 'good'), :]
     units = units.loc[units.fr > frate_thresh, :]
-    
+    # tmp = units.loc[units.fr <= frate_thresh, :]
+    # [idx for idx, name in enumerate(units.loc[units.quality == 'good', 'unit_name']) if name in tmp.unit_name.values]
+    # tmp = units.loc[(quality <= quality_thresh) & (units.quality == 'good')]
+    # [idx for idx, name in enumerate(units.loc[units.quality == 'good', 'unit_name']) if name in tmp.unit_name.values]
+
     if bad_units_list is not None:
         good_idx = [idx for idx, unit_info in units.iterrows() if int(unit_info.unit_name) not in bad_units_list]
         units = units.loc[good_idx, :]

@@ -10,6 +10,8 @@ from pynwb import NWBHDF5IO
 import ndx_pose
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.colors as colors
+from matplotlib import colormaps
 from mpl_toolkits.mplot3d.art3d import Line3DCollection
 from mpl_toolkits.mplot3d.axes3d import Axes3D
 from importlib import sys
@@ -19,6 +21,7 @@ from viziphant.rasterplot import rasterplot
 from viziphant.events import add_event
 from quantities import s
 from scipy.ndimage import gaussian_filter
+from scipy.stats import median_test
 import os
 import seaborn as sns
 import dill
@@ -49,6 +52,7 @@ if marmcode == 'TY':
     view_angle = (28, 148)#(14, 146)
     apparatus_min_dims = [0, 0, 0]
     apparatus_max_dims = [14, 12.5, 7]
+    reach_to_plot=3
 elif marmcode == 'MG':
     nwb_infile = data_path / 'MG' / 'MG20230416_1505_mothsAndFree-002_processed_DM_with_functional_networks.nwb'
     # area_order=['6dc', 'M1', '3a']
@@ -61,6 +65,7 @@ elif marmcode == 'MG':
     view_angle = (28, 11)
     apparatus_min_dims = [6, -3, 0]
     apparatus_max_dims = [14, 10, 5]
+    reach_to_plot=14
 
 pkl_infile   = nwb_infile.parent / f'{nwb_infile.stem.split("_with_functional_networks")[0]}_{pkl_in_tag}.pkl'
 
@@ -114,6 +119,7 @@ class plot_params:
         aucScatter_figSize = (2.5, 2.5)
         FN_figsize = (3, 3)
         feature_corr_figSize = (3, 3)
+        speed_dist_figsize = (1.4, 1.2)
 
 
     elif fig_mode == 'pres':
@@ -165,6 +171,25 @@ class plot_params:
 
         corr_marker_color = 'gray'
 
+try:
+    frate_cmap = plt.get_cmap("frate_palette")
+    frate_colors = frate_cmap([0, 1, 2, 3, 4, 5])
+except:
+    cmap_orig = plt.get_cmap("Paired")
+    FN_colors = cmap_orig([1, 0, 2])
+    cmap = colors.ListedColormap(FN_colors)
+    colormaps.register(cmap, name="FN_palette")
+    FN_5_colors_annotated      = np.vstack((FN_colors, np.array([[99,99,99, 256], [251,154,153,256]])/256)) 
+    FN_5_colors_extend_retract = np.vstack((FN_colors, np.array([[51,160,44, 256], [128,0,128,256]])/256)) 
+    frate_colors               = np.vstack((FN_5_colors_annotated[[0, 2, 3, 4]], FN_5_colors_extend_retract[[3, 4]])) 
+    colormaps.register(colors.ListedColormap((FN_5_colors_annotated)), name='annot_FN_palette')
+    colormaps.register(colors.ListedColormap((FN_5_colors_extend_retract)), name='ext_ret_FN_palette')
+    colormaps.register(colors.ListedColormap((frate_colors)), name='frate_palette')   
+    colormaps.register(colors.ListedColormap((frate_colors[-2:])), name='ext_ret')
+
+fig6_palette = 'Dark2'
+plot_params.frate_colors = frate_colors
+
 class fig3_params:
     dirColors = np.array([[27 , 158, 119],
                           [217, 95 , 2  ],
@@ -204,7 +229,7 @@ plt.rcParams['ytick.labelsize'] = plot_params.tick_fontsize
 plt.rcParams['ytick.major.size'] = plot_params.tick_length
 plt.rcParams['ytick.major.width'] = plot_params.tick_width
 plt.rcParams['legend.fontsize'] = plot_params.axis_fontsize
-plt.rcParams['legend.loc'] = 'upper left'
+plt.rcParams['legend.loc'] = 'upper right'
 plt.rcParams['legend.borderaxespad'] = 1.1
 plt.rcParams['legend.borderpad'] = 1.1
 
@@ -299,11 +324,12 @@ def compute_derivatives(marker_pos=None, marker_vel=None, smooth = True):
     
     return marker_vel, marker_acc
 
-def identify_extension_and_retraction(reaches, plot=False):
+
+def identify_extension_and_retraction(reaches, save_data=True, plot=False, speed_plot = False, paperFig=None):
     
     pos_color = 'black'
-    extension_color = 'green'
-    retraction_color = 'purple'
+    extension_color  = plot_params.frate_colors[-1]  #'green'
+    retraction_color = plot_params.frate_colors[-2] #'purple'
     linewidth = 1
     
     first_event_key = [key for idx, key in enumerate(kin_module.data_interfaces.keys()) if idx == 0][0]
@@ -320,6 +346,7 @@ def identify_extension_and_retraction(reaches, plot=False):
         shoulder_label = 'r-shoulder'
     
     ext_start, ext_stop, ret_start, ret_stop = [], [], [], []
+    kin_df = pd.DataFrame()
     for reachNum, reach in reaches.iterrows():      
                 
         # get event data using container and ndx_pose names from segment_info table following form below:
@@ -346,15 +373,18 @@ def identify_extension_and_retraction(reaches, plot=False):
         
         extension_segments  = [extension_idxs [start:stop] for start, stop in zip(ext_bound_idxs[:-1], ext_bound_idxs[1:])]
         retraction_segments = [retraction_idxs[start:stop] for start, stop in zip(ret_bound_idxs[:-1], ret_bound_idxs[1:])]
-        
+        if reachNum == 19:
+            stop = []
         for seg in extension_segments:
-            ext_start.append(timestamps[seg[ 0]])
-            ext_stop.append (timestamps[seg[-1]])
+            if len(seg)>0:
+                ext_start.append(timestamps[seg[ 0]])
+                ext_stop.append (timestamps[seg[-1]])
         for seg in retraction_segments:
-            ret_start.append(timestamps[seg[ 0]])
-            ret_stop.append (timestamps[seg[-1]])
+            if len(seg)>0:
+                ret_start.append(timestamps[seg[ 0]])
+                ret_stop.append (timestamps[seg[-1]])
         
-        if plot:
+        if plot and reachNum == reach_to_plot:                
             fig0 = plt.figure(figsize = plot_params.traj_pos_sample_figsize, dpi=plot_params.dpi)
             ax0 = plt.axes(projection='3d')
             
@@ -389,19 +419,77 @@ def identify_extension_and_retraction(reaches, plot=False):
             
             plt.show()
     
-            # fig0.savefig(plots / paperFig / f'{marmcode}_trajectory_sampling_pos_{sampleNum}.png', bbox_inches='tight', dpi=plot_params.dpi)
+            fig0.savefig(plots / paperFig / f'{marmcode}_extension_retraction_position_{reachNum}.png', bbox_inches='tight')
+            fig1.savefig(plots / paperFig / f'{marmcode}_extension_distance_{reachNum}.png', bbox_inches='tight')
     
-        
+        if reachNum > 4:
+            stopHere = []
+        if speed_plot:    
+            for ext_seg in extension_segments:
+                pos = wrist_kinematics[:, ext_seg] - shoulder_kinematics[:, ext_seg]
+                vel, tmp_acc = compute_derivatives(marker_pos=pos, marker_vel=None, smooth = True)
+                if vel.shape[-1] == 0:
+                    continue
+                tmp_df = pd.DataFrame(data=zip(np.sqrt(np.square(vel).sum(axis=0)),
+                                               np.repeat(reachNum, vel.shape[-1]),
+                                               np.repeat('Extension', vel.shape[-1]),),
+                                      columns=['speed', 'reach', 'movement'])
+                tmp_df = tmp_df.loc[~np.isnan(tmp_df['speed'])]
+                kin_df = pd.concat((kin_df, tmp_df))
+            for ret_seg in retraction_segments:
+                pos = wrist_kinematics[:, ret_seg] - shoulder_kinematics[:, ret_seg]
+                vel, tmp_acc = compute_derivatives(marker_pos=pos, marker_vel=None, smooth = True)
+                if vel.shape[-1] == 0:
+                    continue
+                tmp_df = pd.DataFrame(data=zip(np.sqrt(np.square(vel).sum(axis=0)),
+                                               np.repeat(reachNum, vel.shape[-1]),
+                                               np.repeat('Retraction', vel.shape[-1]),),
+                                      columns=['speed', 'reach', 'movement'])
+                tmp_df = tmp_df.loc[~np.isnan(tmp_df['speed'])]
+                kin_df = pd.concat((kin_df, tmp_df))
+                
+    if speed_plot:
+        med_ext_speed = np.median(kin_df.loc[kin_df['movement'] == 'Extension', 'speed'])
+        med_ret_speed = np.median(kin_df.loc[kin_df['movement'] == 'Retraction', 'speed'])
+        kin_df = kin_df.loc[~np.isnan(kin_df['speed'])]
+
+        med_out = median_test(kin_df.loc[kin_df['movement'] == 'Extension', 'speed'], 
+                              kin_df.loc[kin_df['movement'] == 'Retraction', 'speed'],
+                              nan_policy='omit')
+        print(f"Extension  median speed = {med_ext_speed}")
+        print(f"Retraction median speed = {med_ret_speed}")
+        print(f'speed: Extension v Retraction, p={np.round(med_out[1], 4)}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
+        pval = np.round(med_out[1], 4)
+        ptext = 'p < 0.01' if pval < 0.01 else f'p = {np.round(pval, 2)}'
+
+        fig, ax = plt.subplots(figsize = plot_params.speed_dist_figsize, dpi=plot_params.dpi)
+        sns.kdeplot(data=kin_df, ax=ax, x='speed', hue='movement', legend = False, 
+                    linewidth = plot_params.traj_linewidth, common_norm=False, bw_adjust=0.75, 
+                    palette=[extension_color, retraction_color])
+        ax.set_xlabel('Speed (cm/s)')
+        ax.set_xlim(0, 80)
+        ax.set_yticks([])
+        ax.set_xticks([0, med_ret_speed, med_ext_speed, 80])
+        ax.set_xticklabels(['0', '', '', '80'])
+        ax.text(50, 0.015, ptext, horizontalalignment='center', fontsize = plot_params.tick_fontsize)
+        plt.show()
+    
+        fig.savefig(plots / paperFig / f'{marmcode}_extension_retraction_speed_distributions.png', bbox_inches='tight')
+
+    
     extension_times = pd.DataFrame(data=zip(ext_start, ext_stop),
                                    columns=['start', 'stop'])   
-    extension_times.to_hdf(data_path / 'TY' / 'reaching_extend_retract_segments.h5', key='extension')
     retraction_times = pd.DataFrame(data=zip(ret_start, ret_stop),
                                    columns=['start', 'stop'])   
-    retraction_times.to_hdf(data_path / 'TY' / 'reaching_extend_retract_segments.h5', key='retraction')  
+    
+    if save_data:
+        extension_times.to_hdf(data_path / nwb.subject.subject_id / 'reaching_extend_retract_segments.h5', key='extension')
+        retraction_times.to_hdf(data_path / nwb.subject.subject_id / 'reaching_extend_retract_segments.h5', key='retraction')  
+        
     
     return extension_times, retraction_times
 
-def examine_single_reach_kinematic_distributions(reaches, plot=False):
+def examine_single_reach_kinematic_distributions(reaches, plot=False, paperFig=None):
     
     pos_color = 'black'
     linewidth = 1
@@ -481,16 +569,18 @@ def examine_single_reach_kinematic_distributions(reaches, plot=False):
             ax.set_xlim(-10, 10)
         elif key == 'speed':
             ax.set_xlim(0, 100)
+        fig.savefig(plots / paperFig / f'{marmcode}_{key}_distributions_by_reach.png', bbox_inches='tight', dpi=plot_params.dpi)
         plt.show()
+        
     
     for vel in ['vx', 'vy', 'vz']:
         kin_df[f'{vel}_mag'] = np.abs(kin_df[vel])
-    g = sns.PairGrid(kin_df.loc[:, ['vx_mag', 'vy_mag', 'vz_mag']])
+    g = sns.PairGrid(kin_df.loc[:, ['vx', 'vy', 'vz']])
     g.map_upper(sns.scatterplot, s=2)
     g.map_lower(sns.scatterplot, s=2)
     g.map_diag(sns.kdeplot, lw=2)
+    plt.gcf().savefig(plots / paperFig / f'{marmcode}_velocity_pairGrid.png', bbox_inches='tight', dpi=plot_params.dpi)
     plt.show()
-            # fig0.savefig(plots / paperFig / f'{marmcode}_trajectory_sampling_pos_{sampleNum}.png', bbox_inches='tight', dpi=plot_params.dpi)
      
     
 if __name__ == '__main__':
@@ -511,9 +601,9 @@ if __name__ == '__main__':
         
         units, reaches, kin_module = get_sorted_units_and_apparatus_kinematics_with_metadata(nwb, reaches_key, plot=False)
     
-        examine_single_reach_kinematic_distributions(reaches, plot=True)        
+        # examine_single_reach_kinematic_distributions(reaches, plot=True, paperFig ='Revision_Plots')        
     
-        # extension_times, retraction_times = identify_extension_and_retraction(reaches, plot=True)
+        extension_times, retraction_times = identify_extension_and_retraction(reaches, save_data=False, plot=True, speed_plot=True, paperFig = 'extension_retraction_FNs')
     
         # plot_fig1_trajectory_sampling(units_res, reaches, reachNum = reaches_to_plot[0], 
         #                               mod_start_timestamps = mod_start_timestamps, 

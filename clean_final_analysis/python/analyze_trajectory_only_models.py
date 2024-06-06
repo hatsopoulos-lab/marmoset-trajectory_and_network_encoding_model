@@ -1627,8 +1627,8 @@ if __name__ == "__main__":
     # plt.show()
     # fig.savefig(os.path.join(plots, 'unknown', 'wji_vs_pearson_r_columns_by_connection.png'), bbox_inches='tight', dpi=plot_params.dpi) 
    
-    if save_kinModels_pkl:
-        with open(pkl_outfile, 'wb') as f:
-            dill.dump(results_dict, f, recurse=True) 
+    # if save_kinModels_pkl:
+    #     with open(pkl_outfile, 'wb') as f:
+    #         dill.dump(results_dict, f, recurse=True) 
 
 

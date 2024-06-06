@@ -1757,8 +1757,15 @@ def find_reach_specific_group(diff_df, model_1, model_2, paperFig = 'FigS5'):
     sorted_diff_df = diff_df.sort_values(by='auc_diff', ascending=False)
     sorted_diff_df['dist_positive_grad'] = np.hstack((np.abs(np.diff(sorted_diff_df['dist_from_unity'])),
                                                       [np.nan]))     
-    medFilt_grad = median_filter(sorted_diff_df['dist_positive_grad'], 9)
-    lastUnit = np.where(medFilt_grad < 0.075 * np.nanmax(medFilt_grad))[0][0]
+    # medFilt_grad = median_filter(sorted_diff_df['dist_positive_grad'], 9)
+    # lastUnit = np.where(medFilt_grad < 0.075 * np.nanmax(medFilt_grad))[0][0]
+    
+    medFilt_grad = median_filter(sorted_diff_df['dist_positive_grad'], 8)
+    lastUnit = np.where(medFilt_grad < 0.1  * np.nanmax(medFilt_grad))[0][0]
+    top_value_cut = -12 if marmcode=='TY' else -3 
+    tmp = sorted_diff_df['dist_positive_grad'].values
+    tmp = tmp[~np.isnan(tmp)]
+    lastUnit = np.where(medFilt_grad < 0.1 * np.median(np.sort(tmp)[top_value_cut:]))[0][0]
     
     plot_mult = 10 if marmcode == 'TY' else 5
     fig, ax = plt.subplots(figsize = plot_params.classifier_figSize, dpi=plot_params.dpi)
@@ -2256,10 +2263,10 @@ if __name__ == "__main__":
         
     _, cmin, cmax = plot_functional_networks(FN, units_res, FN_key = params.FN_key, paperFig='Fig1')
     _, _, _       = plot_functional_networks(spontaneous_FN, units_res, FN_key ='spontaneous_FN', paperFig='Fig1', cmin=cmin, cmax=cmax)
-    _, _, _       = plot_functional_networks(ext_FN, units_res, FN_key ='extension_FN' , paperFig='extension_retraction_FNs', cmin=cmin, cmax=cmax)
-    _, _, _       = plot_functional_networks(ret_FN, units_res, FN_key ='retraction_FN', paperFig='extension_retraction_FNs', cmin=cmin, cmax=cmax)
-    for behavior, behavior_FN in annotated_FN_dict.items():
-        _, _, _ = plot_functional_networks(behavior_FN, units_res, FN_key = behavior, paperFig='Exploratory_Spont_FNs', cmin=cmin, cmax=cmax)
+    # _, _, _       = plot_functional_networks(ext_FN, units_res, FN_key ='extension_FN' , paperFig='extension_retraction_FNs', cmin=cmin, cmax=cmax)
+    # _, _, _       = plot_functional_networks(ret_FN, units_res, FN_key ='retraction_FN', paperFig='extension_retraction_FNs', cmin=cmin, cmax=cmax)
+    # for behavior, behavior_FN in annotated_FN_dict.items():
+    #     _, _, _ = plot_functional_networks(behavior_FN, units_res, FN_key = behavior, paperFig='Exploratory_Spont_FNs', cmin=cmin, cmax=cmax)
 
 
     # _, cmin, cmax =plot_functional_networks(spontaneous_FN, units_res, FN_key ='spontaneous_FN')
@@ -2268,16 +2275,16 @@ if __name__ == "__main__":
     ymin, ymax = plot_weights_versus_interelectrode_distances(FN, spontaneous_FN, 
                                                               electrode_distances, paperFig='Fig1',
                                                               palette='FN_palette')
-    ymin, ymax = plot_weights_versus_interelectrode_distances(FN, spontaneous_FN, 
-                                                              electrode_distances, 
-                                                              annotated_FN_dict=annotated_FN_dict,
-                                                              paperFig='Exploratory_Spont_FNs',
-                                                              palette=None)
-    ymin, ymax = plot_weights_versus_interelectrode_distances(FN, spontaneous_FN, 
-                                                              electrode_distances, 
-                                                              extend_retract_FNs=[ext_FN, ret_FN],
-                                                              paperFig='extension_retraction_FNs',
-                                                              palette=None)    
+    # ymin, ymax = plot_weights_versus_interelectrode_distances(FN, spontaneous_FN, 
+    #                                                           electrode_distances, 
+    #                                                           annotated_FN_dict=annotated_FN_dict,
+    #                                                           paperFig='Exploratory_Spont_FNs',
+    #                                                           palette=None)
+    # ymin, ymax = plot_weights_versus_interelectrode_distances(FN, spontaneous_FN, 
+    #                                                           electrode_distances, 
+    #                                                           extend_retract_FNs=[ext_FN, ret_FN],
+    #                                                           paperFig='extension_retraction_FNs',
+    #                                                           palette=None)    
     style_key = None
     plotted_on_map_record = []
     model_list_x = [       'traj',    'position',          'traj_avgPos']
@@ -2324,25 +2331,25 @@ if __name__ == "__main__":
                                                              subset_idxs = reach_specific_units, subset_type=subset, paperFig='Fig5')
     reach_specific_spontFN , _, _ = plot_functional_networks(spontaneous_FN, units_res, FN_key ='spontaneous_FN', cmin=cmin, cmax=cmax, 
                                                              subset_idxs = reach_specific_units, subset_type=subset, paperFig='Fig5')
-    reach_specific_extFN   , _, _ = plot_functional_networks(ext_FN, units_res, FN_key ='extension_FN', cmin=cmin, cmax=cmax, 
-                                                             subset_idxs = reach_specific_units, subset_type=subset, paperFig='extension_retraction_FNs')
-    reach_specific_retFN   , _, _ = plot_functional_networks(ret_FN, units_res, FN_key ='retraction_FN', cmin=cmin, cmax=cmax, 
-                                                             subset_idxs = reach_specific_units, subset_type=subset, paperFig='extension_retraction_FNs')
-    for behavior, behavior_FN in annotated_FN_dict.items():
-        _, _, _ = plot_functional_networks(behavior_FN, units_res, FN_key = behavior, paperFig='Exploratory_Spont_FNs', 
-                                           subset_idxs = reach_specific_units, subset_type=subset, cmin=cmin, cmax=cmax)
+    # reach_specific_extFN   , _, _ = plot_functional_networks(ext_FN, units_res, FN_key ='extension_FN', cmin=cmin, cmax=cmax, 
+    #                                                          subset_idxs = reach_specific_units, subset_type=subset, paperFig='extension_retraction_FNs')
+    # reach_specific_retFN   , _, _ = plot_functional_networks(ret_FN, units_res, FN_key ='retraction_FN', cmin=cmin, cmax=cmax, 
+    #                                                          subset_idxs = reach_specific_units, subset_type=subset, paperFig='extension_retraction_FNs')
+    # for behavior, behavior_FN in annotated_FN_dict.items():
+    #     _, _, _ = plot_functional_networks(behavior_FN, units_res, FN_key = behavior, paperFig='Exploratory_Spont_FNs', 
+    #                                        subset_idxs = reach_specific_units, subset_type=subset, cmin=cmin, cmax=cmax)
 
     non_specific_reachFNs, _, _ = plot_functional_networks(FN, units_res, FN_key = params.FN_key, cmin=cmin, cmax=cmax, 
-                                                           subset_idxs = non_specific_units, subset_type=subset, paperFig='Fig5')
+                                                            subset_idxs = non_specific_units, subset_type=subset, paperFig='Fig5')
     non_specific_spontFN , _, _ = plot_functional_networks(spontaneous_FN, units_res, FN_key ='spontaneous_FN', cmin=cmin, cmax=cmax, 
-                                                           subset_idxs = non_specific_units, subset_type=subset, paperFig='Fig5')
-    non_specific_extFN   , _, _ = plot_functional_networks(ext_FN, units_res, FN_key ='extension_FN', cmin=cmin, cmax=cmax, 
-                                                           subset_idxs = non_specific_units, subset_type=subset, paperFig='extension_retraction_FNs')
-    non_specific_retFN   , _, _ = plot_functional_networks(ret_FN, units_res, FN_key ='retraction_FN', cmin=cmin, cmax=cmax, 
-                                                           subset_idxs = non_specific_units, subset_type=subset, paperFig='extension_retraction_FNs')
-    for behavior, behavior_FN in annotated_FN_dict.items():
-        _, _, _ = plot_functional_networks(behavior_FN, units_res, FN_key = behavior, paperFig='Exploratory_Spont_FNs', 
-                                           subset_idxs = non_specific_units, subset_type=subset, cmin=cmin, cmax=cmax)
+                                                            subset_idxs = non_specific_units, subset_type=subset, paperFig='Fig5')
+    # non_specific_extFN   , _, _ = plot_functional_networks(ext_FN, units_res, FN_key ='extension_FN', cmin=cmin, cmax=cmax, 
+    #                                                        subset_idxs = non_specific_units, subset_type=subset, paperFig='extension_retraction_FNs')
+    # non_specific_retFN   , _, _ = plot_functional_networks(ret_FN, units_res, FN_key ='retraction_FN', cmin=cmin, cmax=cmax, 
+    #                                                        subset_idxs = non_specific_units, subset_type=subset, paperFig='extension_retraction_FNs')
+    # for behavior, behavior_FN in annotated_FN_dict.items():
+    #     _, _, _ = plot_functional_networks(behavior_FN, units_res, FN_key = behavior, paperFig='Exploratory_Spont_FNs', 
+    #                                        subset_idxs = non_specific_units, subset_type=subset, cmin=cmin, cmax=cmax)
 
     reach_specific_units_res = units_res.loc[reach_specific_units, :]
     non_specific_units_res   = units_res.loc[non_specific_units, :]
