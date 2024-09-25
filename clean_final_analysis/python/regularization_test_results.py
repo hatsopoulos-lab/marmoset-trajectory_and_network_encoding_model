@@ -15,6 +15,11 @@ import itertools
 import os
 from scipy.stats import binomtest, ttest_rel
 from pathlib import Path
+from importlib import sys
+
+code_path = Path('/project/nicho/projects/marmosets/code_database/analysis/trajectory_encoding_model/clean_final_analysis/')
+sys.path.insert(0, str(code_path))
+from utils import load_dict_from_hdf5
 
 marmscode = 'both'
 filter_untuned = False
@@ -26,8 +31,10 @@ elif marmscode == 'MG':
     pkl_infiles = ['/project/nicho/projects/dalton/data/MG/MG20230416_1505_mothsAndFree-002_processed_DM_dlcIter5_resortedUnits_trajectory_shuffled_encoding_models_30msREGTEST_V2_shift_v4.pkl']
     marms = ['MG']
 elif marmscode == 'both':
-    pkl_infiles = ['/project/nicho/projects/dalton/data/TY/TY20210211_freeAndMoths-003_resorted_20230612_DM_alpha_pt00001_encoding_models_30msREGTEST_V2_shift_v4.pkl',
-                  '/project/nicho/projects/dalton/data/MG/MG20230416_1505_mothsAndFree-002_processed_DM_dlcIter5_resortedUnits_trajectory_shuffled_encoding_models_30msREGTEST_V2_shift_v4.pkl']
+    hdf_infiles = ['/project/nicho/projects/dalton/data/TY/TY20210211_freeAndMoths-003_resorted_20230612_DM_alpha_parameter_sweep.h5',
+                   '/project/nicho/projects/dalton/data/MG/MG20230416_1505_mothsAndFree-002_processed_DM_alpha_parameter_sweep.h5']
+    # pkl_infiles = ['/project/nicho/projects/dalton/data/TY/TY20210211_freeAndMoths-003_resorted_20230612_DM_alpha_pt00001_encoding_models_30msREGTEST_V2_shift_v4.pkl',
+    #               '/project/nicho/projects/dalton/data/MG/MG20230416_1505_mothsAndFree-002_processed_DM_dlcIter5_resortedUnits_trajectory_shuffled_encoding_models_30msREGTEST_V2_shift_v4.pkl']
     marms = ['TY', 'MG']
     tuned_units = [[i for i in range(175) if i not in [3, 41, 51, 57, 58, 95, 120, 133, 137, 144, 167]],
                    [ 0,  1,  2,  6,  8, 10, 11, 12, 14, 15, 16, 17, 18, 19, 20, 21, 22, 24,
@@ -40,10 +47,11 @@ lags = ['lead_100_lag_300', 'lead_200_lag_300']
 fig_path = Path('/project/nicho/projects/dalton/network_encoding_paper/clean_final_analysis/plots')
 
 regtest_df = pd.DataFrame()
-for marm, pkl_file, tuned_idxs in zip(marms, pkl_infiles, tuned_units):    
+for marm, hdf_file, tuned_idxs in zip(marms, hdf_infiles, tuned_units):    
 
-    with open(pkl_file, 'rb') as f:
-        results_dict = dill.load(f)
+    results_dict = load_dict_from_hdf5(hdf_file, top_level_list=False, convert_4d_array_to_list = True)
+    # with open(pkl_file, 'rb') as f:
+    #     results_dict = dill.load(f)
     
     model_results = results_dict[lags[0]]['model_results']    
     # FN_only_keys = sorted([key for key in model_results.keys() if key[:8] == 'reach_FN'])
@@ -94,7 +102,10 @@ for marm, pkl_file, tuned_idxs in zip(marms, pkl_infiles, tuned_units):
                         
                 regtest_df = pd.concat((regtest_df, tmp_df), ignore_index=True)
             
-            
+hdf_file = [f for f in hdf_infiles if f'data/{marms[0]}/' in f][0]
+dataset_code = hdf_file.split(f'data/{marms[0]}/')[-1][:10] 
+regtest_df.to_csv(fig_path.parent / 'plots' / dataset_code / f'FigS6_alpha_sweep.csv')
+
 for model, marm in itertools.product(['Full Kinematics', 'Kinematics + reachFN'], marms): 
 
     tmp_df = regtest_df.loc[(regtest_df.model == model) & (regtest_df.marm == marm)]     
@@ -128,13 +139,13 @@ for model, marm in itertools.product(['Full Kinematics', 'Kinematics + reachFN']
     ax.set_xlabel('Regularization Penalty (alpha)')
     sns.despine(ax=ax)
     
-    pkl_file = [f for f in pkl_infiles if f'data/{marm}/' in f][0]
-    dataset_code = pkl_file.split(f'data/{marm}/')[-1][:10] 
+    hdf_file = [f for f in hdf_infiles if f'data/{marm}/' in f][0]
+    dataset_code = hdf_file.split(f'data/{marm}/')[-1][:10] 
     
     try:
-        fig_path = fig_path / dataset_code / 'FigS5'
+        fig_path = fig_path / dataset_code / 'FigS6'
     except:
-        fig_path = Path(os.path.dirname(os.path.dirname(os.path.dirname(pkl_file)))) / 'plots' / dataset_code / 'FigS5'
+        fig_path = Path(os.path.dirname(os.path.dirname(os.path.dirname(hdf_file)))) / 'plots' / dataset_code / 'FigS6'
     os.makedirs(fig_path, exist_ok=True)
     
     fig.savefig(fig_path / f'{marm}_{model.replace(" ", "_")}_alpha_sweep.png', bbox_inches='tight', dpi=300)

@@ -31,7 +31,7 @@ from hatlab_nwb_functions import get_sorted_units_and_apparatus_kinematics_with_
 from utils import choose_units_for_model, get_interelectrode_distances_by_unit
 
 marmcode='TY'
-other_marm = 'MG' #None #'MG' #None
+other_marm = None #'MG' #None #'MG' #None
 FN_computed = True
 fig_mode='paper'
 save_kinModels_pkl = False
@@ -48,16 +48,16 @@ if marmcode=='TY':
     bad_units_list = None
     mua_to_fix = []
     units_to_plot = [1, 7, 8, 13]
-    pathlet_subset = 'context_invariant'
-    # all_units_plot_subset = [  0,   5,   6,   9,  10,  13,  25,  31,  32,  34,  38,  44,  45,  47,
-    #         48,  54,  63,  64,  65,  67,  73,  74,  75,  76,  79,  80,  89, 101,
-    #        121, 122, 128, 130, 131, 148, 153, 154, 155, 159, 163, 172] 
-    all_units_plot_subset = [1,2,3,4,7,8,11,12,14,15,16,17,18,19,20,21,22,23,24,26,27,28,29,30,33,35,36,37,39,40,41,42,43,46,49,
-      50,51,52,53,55,56,57,58,59,60,61,62,66,68,69,70,71,72,77,78,81,82,83,84,85,86,87,88,
-      90,91,92,93,94,95,96,97,98,99,100,102,103,104,105,106,107,108,109,110,111,112,113,
-      114,115,116,117,118,119,120,123,124,125,126,127,129,132,133,134,135,136,137,138,139,
-      140,141,142,143,144,145,146,147,149,150,151,152,156,157,158,160,161,162,164,165,166,
-      167,168,169,170,171,173,174]
+    pathlet_subset = 'context_specific'
+    all_units_plot_subset = [  0,   5,   6,   9,  10,  13,  25,  31,  32,  34,  38,  44,  45,  47,
+            48,  54,  63,  64,  65,  67,  73,  74,  75,  76,  79,  80,  89, 101,
+            121, 122, 128, 130, 131, 148, 153, 154, 155, 159, 163, 172] 
+    # all_units_plot_subset = [1,2,3,4,7,8,11,12,14,15,16,17,18,19,20,21,22,23,24,26,27,28,29,30,33,35,36,37,39,40,41,42,43,46,49,
+    #   50,51,52,53,55,56,57,58,59,60,61,62,66,68,69,70,71,72,77,78,81,82,83,84,85,86,87,88,
+    #   90,91,92,93,94,95,96,97,98,99,100,102,103,104,105,106,107,108,109,110,111,112,113,
+    #   114,115,116,117,118,119,120,123,124,125,126,127,129,132,133,134,135,136,137,138,139,
+    #   140,141,142,143,144,145,146,147,149,150,151,152,156,157,158,160,161,162,164,165,166,
+    #   167,168,169,170,171,173,174]
     # unit_axlims = (np.array([-0.009687  , -0.00955038, -0.01675681]),
     #                np.array([0.02150172 , 0.02333975 , 0.01376333]))
     unit_axlims = (np.array([-0.00955038  , -0.00955038, -0.00955038]),
@@ -76,12 +76,12 @@ elif marmcode=='MG':
     mua_to_fix = [745, 796]
     units_to_plot = [0, 3, 8, 9]
     
-    pathlet_subset = 'context_invariant'
-    # all_units_plot_subset = [2, 6, 16, 19, 20, 21, 45, 60, 70]
-    all_units_plot_subset = [ 0,  1,  3,  4,  5,  7,  8,  9, 10, 11, 12, 13, 14, 15, 17, 18, 22, 23,
-            24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41,
-            42, 43, 44, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 61,
-            62, 63, 64, 65, 66, 67, 68, 69, 71, 72]
+    pathlet_subset = 'context_specific'
+    all_units_plot_subset = [2, 6, 16, 19, 20, 21, 45, 60, 70]
+    # all_units_plot_subset = [ 0,  1,  3,  4,  5,  7,  8,  9, 10, 11, 12, 13, 14, 15, 17, 18, 22, 23,
+    #         24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41,
+    #         42, 43, 44, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 61,
+    #         62, 63, 64, 65, 66, 67, 68, 69, 71, 72]
     unit_axlims = (np.array([-0.009687  , -0.00955038, -0.01675681]),
                    np.array([0.02150172 , 0.02333975 , 0.01376333]))
     # reaches_to_plot=[[3, 4, 5], [6, 7, 11]]
@@ -363,6 +363,8 @@ def plot_reach_samples(nReaches = 3, reachset1 = None, reachset2 = None, color1 
     fig0.savefig(os.path.join(plots, paperFig, f'{marmcode}_reach_set1_reaches.png'), bbox_inches='tight', dpi=plot_params.dpi)
     fig1.savefig(os.path.join(plots, paperFig, f'{marmcode}_reach_set2_reaches.png'), bbox_inches='tight', dpi=plot_params.dpi)
 
+    
+
 def plot_boxplot_of_trajectory_model_auc(units_res, other_marm = False, filter_other_marm = False, model_list = None, label_list = None, paperFig = 'unknown'):
     
     if not other_marm:
@@ -424,6 +426,7 @@ def plot_boxplot_of_trajectory_model_auc(units_res, other_marm = False, filter_o
     axes[1].set_yticklabels('', fontsize=plot_params.tick_fontsize)
     
     fig.savefig(os.path.join(plots, paperFig, f'trajectory_model_auc_results.png'), bbox_inches='tight', dpi=plot_params.dpi)
+    box_df.to_csv(os.path.join(plots, f'{paperFig}_trajectory_model_auc_results.csv'))
 
     #### Plot scatter of tortuosity and mean speed
     sample_info_marm1 = results_dict[params.best_lead_lag_key]['sampled_data']['sample_info'].copy()
@@ -649,6 +652,7 @@ def organize_results_by_model_for_all_lags(fig_mode, per=None, prop=None, paperF
             
             if fig_mode == 'all':
                 fig.savefig(os.path.join(plots, paperFig, f'{name}_auc_leadlagsRange_unfiltered_WITH_LEGEND.png'), bbox_inches='tight', dpi=plot_params.dpi)
+                fig_df.to_csv(os.path.join(plots, f'{paperFig}_{name}_auc_leadlagsRange_unfiltered.csv'))
             else:
                 filtThresh = per if per is not None else int(prop*100)
                 figname = f'{name}_auc_leadlagsRange_filtered_by_{fig_mode}_{filtThresh}.png'
@@ -1051,6 +1055,7 @@ def plot_pathlet(posTraj_mean, posTraj_samples, lead_lag_key, model, avgPos_mean
         fig = plt.figure(figsize = plot_params.preferred_traj_figsize)
         ax = plt.axes(projection='3d')
         figname = 'units_'
+        source_data_storage = None
         for idx, unit in enumerate(units):
             
             if numToPlot is not None and unitsToPlot is not None: 
@@ -1061,9 +1066,26 @@ def plot_pathlet(posTraj_mean, posTraj_samples, lead_lag_key, model, avgPos_mean
                 
             figname += f'{unit}_'
             leadSamp = round(lead / (lead + lag) * posTraj_mean.shape[0])
-            for sampPath in posTraj_samples:
+            for sampNum, sampPath in enumerate(posTraj_samples):
                 ax.plot3D(sampPath[:leadSamp + 1, 0, unit], sampPath[:leadSamp + 1, 1, unit], sampPath[:leadSamp + 1, 2, unit], 'blue', linewidth=plot_params.preferred_traj_linewidth)
                 ax.plot3D(sampPath[leadSamp:    , 0, unit], sampPath[leadSamp:    , 1, unit], sampPath[leadSamp:    , 2, unit], 'red', linewidth=plot_params.preferred_traj_linewidth)
+            
+                if source_data_storage is None:
+                    source_data_storage = np.hstack((sampPath[:, :, unit],
+                                                     np.vstack((np.full((leadSamp, 1), 0), 
+                                                                np.full((sampPath.shape[0] - leadSamp, 1), 1))),
+                                                     np.full((sampPath.shape[0], 1), unit),
+                                                     np.full((sampPath.shape[0], 1), sampNum),
+                                                     ))
+                else:
+                    tmp = np.hstack((sampPath[:, :, unit],
+                                     np.vstack((np.full((leadSamp, 1), 0), 
+                                                np.full((sampPath.shape[0] - leadSamp, 1), 1))),
+                                     np.full((sampPath.shape[0], 1), unit),
+                                     np.full((sampPath.shape[0], 1), sampNum),
+                                     ))
+                    source_data_storage = np.vstack((source_data_storage, tmp))
+            
             ax.plot3D(posTraj_mean[:leadSamp + 1, 0, unit], posTraj_mean[:leadSamp + 1, 1, unit], posTraj_mean[:leadSamp + 1, 2, unit], 'black', linewidth=plot_params.preferred_traj_linewidth*2)
             ax.plot3D(posTraj_mean[leadSamp:, 0, unit], posTraj_mean[leadSamp:, 1, unit], posTraj_mean[leadSamp:, 2, unit], 'black', linewidth=plot_params.preferred_traj_linewidth*2)
         
@@ -1114,6 +1136,8 @@ def plot_pathlet(posTraj_mean, posTraj_samples, lead_lag_key, model, avgPos_mean
         plt.show()
         
         fig.savefig(os.path.join(plots, 'Fig2', f'{figname}pathlets.png'), bbox_inches='tight', dpi=plot_params.dpi)
+        np.savetxt(os.path.join(plots, f'Fig2_{figname}pathlets.csv'), source_data_storage, delimiter=',')
+
     
     if unit_selector == 'max':
         
@@ -1123,6 +1147,7 @@ def plot_pathlet(posTraj_mean, posTraj_samples, lead_lag_key, model, avgPos_mean
         ax2  = plt.axes(projection='3d')
         axis_mins = np.empty((3, posTraj_mean.shape[-1]))
         axis_maxs = np.empty_like(axis_mins)
+        source_data_storage = None
         for unit in range(posTraj_mean.shape[-1]):
             if all_units_plot_subset is not None and unit not in all_units_plot_subset:
                 continue
@@ -1139,6 +1164,20 @@ def plot_pathlet(posTraj_mean, posTraj_samples, lead_lag_key, model, avgPos_mean
             
             axis_mins[:, unit] = np.array([posTraj_plus_avgPos[:, dim].min() for dim in range(3)]) 
             axis_maxs[:, unit] = np.array([posTraj_plus_avgPos[:, dim].max() for dim in range(3)]) 
+            
+            if source_data_storage is None:
+                source_data_storage = np.hstack((posTraj_mean[:, :, unit],
+                                                 np.vstack((np.full((leadSamp, 1), 0), 
+                                                            np.full((posTraj_mean.shape[0] - leadSamp, 1), 1))),
+                                                 np.full((posTraj_mean.shape[0], 1), unit),
+                                                 ))
+            else:
+                tmp = np.hstack((posTraj_mean[:, :, unit],
+                                 np.vstack((np.full((leadSamp, 1), 0), 
+                                            np.full((posTraj_mean.shape[0] - leadSamp, 1), 1))),
+                                 np.full((posTraj_mean.shape[0], 1), unit),
+                                 ))
+                source_data_storage = np.vstack((source_data_storage, tmp))
             
         # ax.set_title(title, fontsize = 16, fontweight = 'bold')
         # ax.set_xticklabels([])
@@ -1183,6 +1222,7 @@ def plot_pathlet(posTraj_mean, posTraj_samples, lead_lag_key, model, avgPos_mean
         fig1.savefig(os.path.join(plots, 'FigS2', f'{figname_mod}_units_pathlets_noPos.png'), bbox_inches='tight', dpi=plot_params.dpi)
         # fig2.savefig(os.path.join(plots, 'all_units_pathlets_withPos.png'), bbox_inches='tight', dpi=plot_params.dpi)
 
+        np.savetxt(os.path.join(plots, f'FigS3_{figname_mod}_units_pathlets_noPos.csv'), source_data_storage, delimiter=',')
 
     if unitsToPlot is not None: 
         print(traj_auc[unitsToPlot[0]])
@@ -1343,6 +1383,7 @@ def compute_and_analyze_trajectory_correlations(units_res, posTraj_mean, velTraj
     
     plt.show()
     fig.savefig(os.path.join(plots, 'Fig2', 'pearson_r_histogram.png'), bbox_inches='tight', dpi=plot_params.dpi)
+    df.to_csv(os.path.join(plots, 'Fig2_pearson_r_histogram.csv'))
     
     return df
             

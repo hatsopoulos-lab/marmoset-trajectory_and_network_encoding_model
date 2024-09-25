@@ -35,7 +35,7 @@ code_path = Path('/project/nicho/projects/marmosets/code_database/analysis/traje
 sys.path.insert(0, str(code_path))
 from hatlab_nwb_functions import get_sorted_units_and_apparatus_kinematics_with_metadata, remove_duplicate_spikes_from_good_single_units   
 
-marmcode = 'TY'
+marmcode = 'MG'
 lead_lag_key = 'lead_100_lag_300'
 fig_mode='paper'
 pkl_in_tag = 'kinematic_models_summarized'
@@ -347,6 +347,7 @@ def identify_extension_and_retraction(reaches, save_data=True, plot=False, speed
     
     ext_start, ext_stop, ret_start, ret_stop = [], [], [], []
     kin_df = pd.DataFrame()
+    source_data_storage = None
     for reachNum, reach in reaches.iterrows():      
                 
         # get event data using container and ndx_pose names from segment_info table following form below:
@@ -373,8 +374,7 @@ def identify_extension_and_retraction(reaches, save_data=True, plot=False, speed
         
         extension_segments  = [extension_idxs [start:stop] for start, stop in zip(ext_bound_idxs[:-1], ext_bound_idxs[1:])]
         retraction_segments = [retraction_idxs[start:stop] for start, stop in zip(ret_bound_idxs[:-1], ret_bound_idxs[1:])]
-        if reachNum == 19:
-            stop = []
+
         for seg in extension_segments:
             if len(seg)>0:
                 ext_start.append(timestamps[seg[ 0]])
@@ -389,12 +389,24 @@ def identify_extension_and_retraction(reaches, save_data=True, plot=False, speed
             ax0 = plt.axes(projection='3d')
             
             ax0.plot3D(wrist_kinematics[0] , wrist_kinematics[1], wrist_kinematics[2], linewidth=linewidth, color=pos_color, linestyle='-')
+            ext_mask = np.full((wrist_kinematics.shape[-1], 1), 0)
             for ext_seg in extension_segments:
                 ax0.plot3D(wrist_kinematics[0, ext_seg], wrist_kinematics[1, ext_seg], wrist_kinematics[2, ext_seg], linewidth=linewidth, color= extension_color, linestyle='-')
+                ext_mask[ext_seg] = 1
             for ret_seg in retraction_segments:
                 ax0.plot3D(wrist_kinematics[0, ret_seg], wrist_kinematics[1, ret_seg], wrist_kinematics[2, ret_seg], linewidth=linewidth, color=retraction_color, linestyle='-')
             ax0.plot3D(wrist_kinematics[0, 0], wrist_kinematics[1, 0], wrist_kinematics[2, 0], 
                        marker='o', markersize=plot_params.spksamp_markersize, markeredgecolor='black', markerfacecolor='white')
+            
+            if source_data_storage is None:
+                source_data_storage = np.hstack((wrist_kinematics.T,
+                                                 ext_mask,
+                                                 ))
+            else:
+                tmp = np.hstack((wrist_kinematics.T,
+                                 ext_mask,
+                                 ))
+                source_data_storage = np.vstack((source_data_storage, tmp))
             
             for ax in [ax0]:
                 ax.set_xlabel('', fontsize = plot_params.axis_fontsize)
@@ -421,9 +433,8 @@ def identify_extension_and_retraction(reaches, save_data=True, plot=False, speed
     
             fig0.savefig(plots / paperFig / f'{marmcode}_extension_retraction_position_{reachNum}.png', bbox_inches='tight')
             fig1.savefig(plots / paperFig / f'{marmcode}_extension_distance_{reachNum}.png', bbox_inches='tight')
-    
-        if reachNum > 4:
-            stopHere = []
+            np.savetxt(plots / f'{paperFig}_{marmcode}_extension_retraction_position_{reachNum}.csv', source_data_storage, delimiter=',')
+
         if speed_plot:    
             for ext_seg in extension_segments:
                 pos = wrist_kinematics[:, ext_seg] - shoulder_kinematics[:, ext_seg]
@@ -475,7 +486,7 @@ def identify_extension_and_retraction(reaches, save_data=True, plot=False, speed
         plt.show()
     
         fig.savefig(plots / paperFig / f'{marmcode}_extension_retraction_speed_distributions.png', bbox_inches='tight')
-
+        kin_df.to_csv(plots / f'{paperFig}_{marmcode}_extension_retraction_speed_distributions.csv')    
     
     extension_times = pd.DataFrame(data=zip(ext_start, ext_stop),
                                    columns=['start', 'stop'])   

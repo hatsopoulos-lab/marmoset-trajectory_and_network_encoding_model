@@ -33,7 +33,7 @@ code_path = Path('/project/nicho/projects/marmosets/code_database/analysis/traje
 sys.path.insert(0, str(code_path))
 from utils import get_interelectrode_distances_by_unit, load_dict_from_hdf5, save_dict_to_hdf5
 
-marmcode='TY'
+marmcode='MG'
 other_marm = None #'MG' #None
 fig_mode='paper'
 save_kinModels_pkl = False
@@ -45,9 +45,12 @@ pkl_add_stats_tag = 'kinematic_models_summarized'
 
 if marmcode=='TY':
     nwb_infile   = data_path / 'TY' / 'TY20210211_freeAndMoths-003_resorted_20230612_DM_with_functional_networks.nwb' 
+    annotated_nwbfile =  nwb_infile.parent / f'{nwb_infile.stem}_annotated_with_reach_segments{nwb_infile.suffix}'
+    # reach_seg_nwbfile =  nwb_infile.parent / f'{nwb_infile.stem}_reach_segments{nwb_infile.suffix}'
     modulation_base = nwb_infile.parent / nwb_infile.stem.split('_with_functional_networks')[0]
 elif marmcode=='MG':
     nwb_infile   = data_path / 'MG' / 'MG20230416_1505_mothsAndFree-002_processed_DM_with_functional_networks.nwb'
+    annotated_nwbfile =  nwb_infile.parent / f'{nwb_infile.stem}_annotated_with_reach_segments{nwb_infile.suffix}'
     modulation_base = nwb_infile.parent / nwb_infile.stem.split('_with_functional_networks')[0]
     
 pkl_infile       = nwb_infile.parent / f'{nwb_infile.stem.split("_with_functional_networks")[0]}_{pkl_in_tag}.pkl'
@@ -117,7 +120,7 @@ class plot_params:
     # tick_fontsize = 18
     # aucScatter_figSize = (7, 7)
     
-    figures_list = ['Fig1', 'Fig2', 'Fig3', 'Fig4', 'Fig5', 'Fig6', 'FigS1',  'FigS2',  'FigS3',  'FigS4', 'FigS5', 'FigS6', 'FigS7', 'unknown']
+    figures_list = ['Fig1', 'Fig2', 'Fig3', 'Fig4', 'Fig5', 'Fig6', 'FigS1',  'FigS2',  'FigS3',  'FigS4', 'FigS5', 'FigS6', 'FigS7', 'unknown', 'Exploratory_Spont_FNs', 'extension_retraction_FNs']
 
     mostUnits_FN = 175
 
@@ -518,7 +521,7 @@ def plot_model_auc_comparison(units_res, x_key, y_key, minauc = 0.5, maxauc = 1.
         if sign_test.pvalue<0.01:
             text = f'p < 0.01{asterisk}'
         else:
-            text = f'p = {np.round(sign_test.pvalue, 4)}{asterisk}'
+            text = f'p = {sign_test.pvalue}{asterisk}'
         if y_key == 'traj_avgPos_reach_FN_auc':
             text_y = 1.0*maxauc 
         else:
@@ -535,7 +538,7 @@ def plot_model_auc_comparison(units_res, x_key, y_key, minauc = 0.5, maxauc = 1.
     if asterisk != '':
         plot_name += '_filtered'
 
-    fig.savefig(os.path.join(fig_base, plot_name + '.png'), bbox_inches='tight', dpi=plot_params.dpi)
+    fig.savefig(os.path.join(fig_base, plot_name + '.png'), bbox_inches='tight', dpi=plot_params.dpi)    
     units_res_plots.to_csv(os.path.join(plots, f'{paperFig}_{plot_name}.csv'))
 
     return sign_test
@@ -636,6 +639,8 @@ def plot_functional_networks(FN, units_res, FN_key = 'split_reach_FNs', cmin=Non
         titles = ['reachFN1', 'reachFN2']
     elif FN_key == 'spontaneous_FN':
         titles = ['spontaneousFN']
+    else:
+        titles = [FN_key]
     
     FNs_to_save = []
     for network, title in zip(FN, titles):
@@ -707,12 +712,8 @@ def plot_functional_networks(FN, units_res, FN_key = 'split_reach_FNs', cmin=Non
         fig.savefig(os.path.join(plots, paperFig, 
                                  f'{marmcode}_functional_network_{title.replace(" ", "_").replace("-", "_")}.png'), bbox_inches='tight', dpi=plot_params.dpi)
     
-        fig.savefig(os.path.join(plots, paperFig, 
-                                 f'{marmcode}_functional_network_{title.replace(" ", "_").replace("-", "_")}.png'), bbox_inches='tight', dpi=plot_params.dpi)
-        np.savetxt(os.path.join(plots, f'{paperFig}_functional_network_{title.replace(" ", "_").replace("-", "_")}.csv'), network_copy, delimiter=',') 
-        
-        plt.hist(network_copy.flatten(), bins = 30)
-        plt.show()
+        # plt.hist(network_copy.flatten(), bins = 30)
+        # plt.show()
         
         FNs_to_save.append(network_copy)
         
@@ -737,7 +738,7 @@ def sig_tests(unit_info, y_key, x_key, alternative='greater', unit_info_reduced 
 
     return sign_test, ttest_paired
 
-def plot_weights_versus_interelectrode_distances(FN, spontaneous_FN, electrode_distances, 
+def plot_weights_versus_interelectrode_distances(FN, spontaneous_FN, electrode_distances, annotated_FN_dict=None, extend_retract_FNs=None,
                                                  ymin=None, ymax=None, paperFig='Fig1', palette=None):
     
     fig, ax = plt.subplots(figsize=plot_params.weights_by_distance_figsize, dpi=plot_params.dpi)
@@ -753,32 +754,75 @@ def plot_weights_versus_interelectrode_distances(FN, spontaneous_FN, electrode_d
     tmp_df = pd.DataFrame(data = zip(spontaneous_FN.flatten(), electrode_distances.flatten(), ['spontFN']*spontaneous_FN.size), 
                           columns = ['Wji', 'Distance', 'Reaches'])
     weights_df = pd.concat((weights_df, tmp_df), axis=0, ignore_index=True)
-        
-    sns.lineplot(ax = ax, data=weights_df, x='Distance', y='Wji', hue='Reaches', 
-                 err_style="bars", errorbar=("se", 1), linewidth=plot_params.lineplot_linewidth,
-                 marker='o', markersize=plot_params.lineplot_markersize, palette=palette, legend=False)
-    # ax.set_ylabel(f'Wji (mean %s sem)' % '\u00B1', fontsize = plot_params.axis_fontsize)
-    ax.set_ylabel('$W_{{ji}}$ (mean \u00B1 sem)')
-    # ax.set_xlabel('Inter-Unit Distance (%sm)' % '\u03bc', fontsize = plot_params.axis_fontsize)
-    ax.set_xlabel('Inter-unit distance (\u03bcm)')
+    
+    if type(annotated_FN_dict) == dict:
+        for behavior, behavior_FN in annotated_FN_dict.items():
+            if behavior not in ['Unknown', 'Apparatus']:
+                fig2, ax2 = plt.subplots(figsize=plot_params.weights_by_distance_figsize, dpi=plot_params.dpi)
 
-    if ymin:
-        ax.set_ylim(ymin, ymax)
+                tmp_df = pd.DataFrame(data = zip(behavior_FN.flatten(), electrode_distances.flatten(), [behavior]*behavior_FN.size),
+                                      columns = ['Wji', 'Distance', 'Reaches'])
+                tmp_weights_df = pd.concat((weights_df, tmp_df), axis=0, ignore_index=True)
+                
+                sns.lineplot(ax = ax2, data=tmp_weights_df, x='Distance', y='Wji', hue='Reaches', 
+                             err_style="bars", errorbar=("se", 1), linewidth=plot_params.lineplot_linewidth,
+                             marker='o', markersize=plot_params.lineplot_markersize, palette=palette, legend=True)
+                sns.move_legend(ax2,  "upper left", bbox_to_anchor=(1, 1))
+                ax.set_ylabel('$W_{{ji}}$ (mean \u00B1 sem)')
+                ax.set_xlabel('Inter-unit distance (\u03bcm)')            
+                if ymin:
+                    ax.set_ylim(ymin, ymax)
+                else:
+                    ymin, ymax = ax2.get_ylim()
+                sns.despine(ax=ax2)
+                plt.show()
+    elif extend_retract_FNs:
+        for label, seg_FN in zip(['extension', 'retraction'], extend_retract_FNs):
+            fig2, ax2 = plt.subplots(figsize=plot_params.weights_by_distance_figsize, dpi=plot_params.dpi)
+
+            tmp_df = pd.DataFrame(data = zip(seg_FN.flatten(), electrode_distances.flatten(), [label]*seg_FN.size),
+                                  columns = ['Wji', 'Distance', 'Reaches'])
+            tmp_weights_df = pd.concat((weights_df, tmp_df), axis=0, ignore_index=True)
+            
+            sns.lineplot(ax = ax2, data=tmp_weights_df, x='Distance', y='Wji', hue='Reaches', 
+                         err_style="bars", errorbar=("se", 1), linewidth=plot_params.lineplot_linewidth,
+                         marker='o', markersize=plot_params.lineplot_markersize, palette=palette, legend=True)
+            sns.move_legend(ax2,  "upper left", bbox_to_anchor=(1, 1))
+            ax.set_ylabel('$W_{{ji}}$ (mean \u00B1 sem)')
+            ax.set_xlabel('Inter-unit distance (\u03bcm)')            
+            if ymin:
+                ax.set_ylim(ymin, ymax)
+            else:
+                ymin, ymax = ax2.get_ylim()
+            sns.despine(ax=ax2)
+            plt.show()
+        
     else:
-        ymin, ymax = ax.get_ylim()
-
-    # ax.legend(bbox_to_anchor=(1.1, 0.5), loc='center left', 
-    #           labels  = weights_df['Reaches'].unique(), 
-    #           title_fontsize = plot_params.axis_fontsize,
-    #           fontsize = plot_params.tick_fontsize)
-    sns.despine(ax=ax)
-    plt.show()
+        sns.lineplot(ax = ax, data=weights_df, x='Distance', y='Wji', hue='Reaches', 
+                     err_style="bars", errorbar=("se", 1), linewidth=plot_params.lineplot_linewidth,
+                     marker='o', markersize=plot_params.lineplot_markersize, palette=palette, legend=False)
+        # ax.set_ylabel(f'Wji (mean %s sem)' % '\u00B1', fontsize = plot_params.axis_fontsize)
+        ax.set_ylabel('$W_{{ji}}$ (mean \u00B1 sem)')
+        # ax.set_xlabel('Inter-Unit Distance (%sm)' % '\u03bc', fontsize = plot_params.axis_fontsize)
+        ax.set_xlabel('Inter-unit distance (\u03bcm)')
+    
+        if ymin:
+            ax.set_ylim(ymin, ymax)
+        else:
+            ymin, ymax = ax.get_ylim()
+    
+        # ax.legend(bbox_to_anchor=(1.1, 0.5), loc='center left', 
+        #           labels  = weights_df['Reaches'].unique(), 
+        #           title_fontsize = plot_params.axis_fontsize,
+        #           fontsize = plot_params.tick_fontsize)
+        sns.despine(ax=ax)
+        plt.show()
         
-    fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_weights_by_distance.png'), bbox_inches='tight', dpi=plot_params.dpi)
-    dist_counts = weights_df.loc[weights_df['Reaches'] == 'reachFN1', :].groupby('Distance').count()['Wji'] / 2
-    dist_counts.to_csv(os.path.join(plots, 'Fig1d_counts.csv'))
-    weights_df.to_csv(os.path.join(plots, 'Fig1d_values.csv'))
-        
+        fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_weights_by_distance.png'), bbox_inches='tight', dpi=plot_params.dpi)
+        dist_counts = weights_df.groupby('Distance').count()['Wji']
+        dist_counts.to_csv(os.path.join(plots, 'Fig1d_counts.csv'))
+        weights_df.to_csv(os.path.join(plots, 'Fig1d_values.csv'))
+    
     return ymin, ymax          
 
 def add_in_weight_to_units_df(units_res, FN):
@@ -822,14 +866,20 @@ def add_modulation_data_to_units_df(units_res):
     modulation_df = modulation_df.loc[mask, :]
     modulation_df.reset_index(drop=True, inplace=True)
 
-    with open(f'{modulation_base}_average_firing_rates.pkl', 'rb') as f:
-        average_rates_df = dill.load(f)     
+    
+    try:
+        average_rates_df = pd.read_hdf(nwb_infile.parent / f'{nwb_infile.stem}_combined_average_firing_rates.h5', 'frates') 
+    except:
+        with open(f'{modulation_base}_average_firing_rates.pkl', 'rb') as f:
+            average_rates_df = dill.load(f)     
 
     for met in modulation_df.columns[:6]:
         units_res[met] = modulation_df[met]
 
-    units_res['reach_frate'] = average_rates_df['Reach']
-    units_res['spont_frate'] = average_rates_df['Spontaneous']
+    for col in average_rates_df.columns:
+        units_res[f'{col.lower()}_frate'] = average_rates_df[col]
+    # units_res['reach_frate'] = average_rates_df['Reach']
+    # units_res['spont_frate'] = average_rates_df['Spontaneous']
     units_res['percent_frate_increase'] = average_rates_df['Reach'] / average_rates_df['Spontaneous']
 
     return units_res    
@@ -939,7 +989,6 @@ def evaluate_effect_of_network_shuffles(lead_lag_key, comparison_model,
 
     # fig = sns.catplot(data = train_auc_df, x='percent', y='auc_loss (%)', col='mode', hue='metric', kind='point', legend=True, errorbar='se')
     
-    p_value_storage = dict(mode=[], comparison=[], percent=[], p_val=[])
     sig_strength_v_random = dict(weights=[], topology=[])
     for mode in train_auc_df['mode'].unique(): 
         for idx, percent in enumerate(train_auc_df['percent'].unique()):    
@@ -949,11 +998,7 @@ def evaluate_effect_of_network_shuffles(lead_lag_key, comparison_model,
             nUnits = np.sum(stats_df['metric'] == 'strength')
             
             sign_test = binomtest(nStrength, nUnits, p = 0.5, alternative='greater')
-            print(f'Strength > Random, {percent}%, {mode}:  p={sign_test.pvalue}, nStrength={sign_test.k}, nUnits={sign_test.n}, prop={np.round(sign_test.proportion_estimate, 2)}')
-            p_value_storage['mode'].append(mode)
-            p_value_storage['comparison'].append('strength > random')
-            p_value_storage['percent'].append(percent)
-            p_value_storage['p_val'].append(sign_test.pvalue)
+            print(f'Strength != Random, {percent}%, {mode}:  p={sign_test.pvalue}, nStrength={sign_test.k}, nUnits={sign_test.n}, prop={np.round(sign_test.proportion_estimate, 2)}')
 
             if sign_test.pvalue < alpha:
                 sig_strength_v_random[mode].append(percent)
@@ -968,10 +1013,6 @@ def evaluate_effect_of_network_shuffles(lead_lag_key, comparison_model,
             
             sign_test = binomtest(nStrength, nUnits, p = 0.5, alternative='two-sided')
             print(f'Strength != No-FN, {percent}%, {mode}:  p={sign_test.pvalue}, nStrength={sign_test.k}, nUnits={sign_test.n}, prop={np.round(sign_test.proportion_estimate, 2)}')
-            p_value_storage['mode'].append(mode)
-            p_value_storage['comparison'].append('strength != noFN')
-            p_value_storage['percent'].append(percent)
-            p_value_storage['p_val'].append(sign_test.pvalue)
 
             if sign_test.pvalue < alpha:
                 sig_noFN_v_strength[mode].append(percent)
@@ -1003,7 +1044,7 @@ def evaluate_effect_of_network_shuffles(lead_lag_key, comparison_model,
 
             # if sign_test.proportion_estimate > 0.77:
             #     sig_strength_v_fullShuffle[mode].append(percent)
-               
+                
     if plot_difference:
         nonsig_diff = dict(weights=[], topology=[])
         for mode in train_auc_df['mode'].unique(): 
@@ -1082,8 +1123,6 @@ def evaluate_effect_of_network_shuffles(lead_lag_key, comparison_model,
     # fig.set(ylim=ylim)
     # fig.set_axis_labels('Percent of Weights Shuffled', 'AUC Percent Loss')
     train_auc_df.to_csv(os.path.join(plots, 'Fig4.csv'))
-    p_value_source_data_df = pd.DataFrame.from_dict(p_value_storage)
-    p_value_source_data_df.to_csv(os.path.join(plots, 'Fig4_p_values.csv')) 
     fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_shuffled_network_auc_loss_summary_figure_{comparison_model}_{target_string}_alpha_pt0{alpha*100}.png'), bbox_inches='tight', dpi=plot_params.dpi)    
 
     return train_auc_df
@@ -1157,13 +1196,33 @@ def plot_modulation_for_subsets(auc_df, paperFig = 'unknown', figname_mod = '', 
             ax.text(tmp_df[metric].max()*0.75, ax.get_ylim()[-1]*0.6, f'p={pval}', horizontalalignment='left', fontsize = plot_params.tick_fontsize)
             plt.show()        
             fig.savefig(os.path.join(plot_save_dir, f'{figname_mod[1:]}_{marmcode}_distribution_{metric}_histogram_highlighted_with_reachspecific{figname_mod}.png'), bbox_inches='tight', dpi=plot_params.dpi)    
-            tmp_df.to_csv(os.path.join(plot_save_dir, f'{figname_mod[1:]}_{marmcode}_distribution_{metric}_histogram_highlighted_with_reachspecific{figname_mod}.csv'))
 
+def plot_average_frates_simple(average_rates_df):
+    label = []
+    rate = []
+    for col in average_rates_df.columns:
+        rate.extend(average_rates_df[col])
+        label.extend([col]*average_rates_df.shape[0])
+    
+    frates_sns = pd.DataFrame(data = zip(rate, label),
+                              columns = ['Rate', 'Behavior'])
+    
+    fig, ax = plt.subplots()
+    sns.kdeplot(data=frates_sns, linewidth=2,
+                x='Rate', hue='Behavior', common_norm=False, bw_adjust=0.4, cumulative=True)
+    sns.move_legend(ax, 'lower right')
+    fig1, ax1 = plt.subplots()
+    sns.kdeplot(data=frates_sns, linewidth=2,
+                x='Rate', hue='Behavior', common_norm=False, bw_adjust=0.4, cumulative=False)
+    sns.move_legend(ax1, 'upper right')
+    fig2, ax2 = plt.subplots()
+    sns.kdeplot(data=frates_sns.loc[(frates_sns['Behavior'] == 'Extension') | (frates_sns['Behavior'] == 'Retraction') | (frates_sns['Behavior'] == 'Reach')], linewidth=2,
+                x='Rate', hue='Behavior', common_norm=False, bw_adjust=0.4, cumulative=False)
+    sns.move_legend(ax1, 'upper right')
+    plt.show()
+    
 
 def plot_trajectory_correlation_and_auc_distributions_for_subsets(auc_df, weights_df, paperFig = 'unknown', figname_mod = '', hue_order_FN=None, palette=None):
-    
-    weights_df.to_csv(Path(plots) / f'{paperFig}_wji.csv')
-    auc_df.to_csv(Path(plots) / f'{paperFig}_auc.csv')
     
     fig, ax = plt.subplots(figsize=plot_params.distplot_figsize)
     sns.kdeplot(ax=ax, data=auc_df, palette=palette, linewidth=plot_params.distplot_linewidth,
@@ -1244,7 +1303,6 @@ def plot_trajectory_correlation_and_auc_distributions_for_subsets(auc_df, weight
 
 def plot_wji_distributions_for_subsets(weights_df, paperFig = 'unknown', figname_mod = '', hue_order_FN=None, palette=None):
     
-    weights_df.to_csv(Path(plots) / f'{paperFig}_wji.csv')
     
     for sub_basis in np.unique(weights_df['Units Subset']):
         fig, ax = plt.subplots(figsize=plot_params.distplot_figsize)
@@ -1338,10 +1396,86 @@ def plot_wji_distributions_for_subsets(weights_df, paperFig = 'unknown', figname
     # fig = sns.relplot(data=weights_df, x='pearson_r', y='Wji', col='Units Subset', kind='scatter')
     # plt.show() 
     # fig.savefig(os.path.join(plots, 'unknown', f'{marmcode}_subnetwork_pearson_r_squared_vs_wji_colkey_UnitsSubset{figname_mod}.png'), bbox_inches='tight', dpi=plot_params.dpi)    
+
+def make_FN_similarity_plots(FN_df):
+    corr = FN_df.corr()
+    f, ax = plt.subplots(figsize=(11, 9))
+    sns.heatmap(ax=ax, data=corr, annot=True,
+                square=True, linewidths=.5, cbar_kws={"shrink": .5})
     
 
+def examine_all_annotated_FNs(units_res, annotated_FN_dict, 
+                              subset_idxs = None, sub_type = None, subset_basis=['Reach-Specific'], 
+                              hue_order_FN=None, palette=None):
+    
+    weights_df = pd.DataFrame()
+    FN_df = pd.DataFrame()
+    completed_comps = []
+    if subset_idxs is not None:
+        for sub_basis, (behavior, behavior_FN) in product(subset_basis, annotated_FN_dict.items()):
+            for behaviorComp, behaviorComp_FN in annotated_FN_dict.items():
+                                
+                sub_idxs = subset_idxs.copy()
+                
+                if 'Non-' in sub_basis:
+                    sub_idxs = np.setdiff1d(np.array(range(units_res.shape[0])), sub_idxs)
+                elif sub_basis == 'Full':
+                    sub_idxs = np.array(range(units_res.shape[0]))
+               
+                if sub_type == 'both':
+                    sources, sub_FN, sub_comp_FN = sub_idxs, behavior_FN[np.ix_(sub_idxs, sub_idxs)], behaviorComp_FN[np.ix_(sub_idxs, sub_idxs)]
+                    units_res_subset_units = units_res.loc[sources, :]  
+                # elif sub_type == 'target':
+                #     sources, sub_beh_FN, sub_behComp_FN = sub_idxs, np.arange(FN.shape[1]), FN[np.ix_(sub_idxs, range(FN.shape[1]))], spontFN_for_diff[np.ix_(sub_idxs, range(FN.shape[1]))]
+                #     units_res_subset_units = units_res.loc[targets, :]
+                # elif sub_type == 'source':
+                #     sources, sub_beh_FN, sub_behComp_FN = np.arange(FN.shape[0]), sub_idxs, FN[np.ix_(range(FN.shape[0]), sub_idxs)], spontFN_for_diff[np.ix_(range(FN.shape[0]), sub_idxs)]
+                #     units_res_subset_units = units_res.loc[sources, :]
+                                
+                units_res_sources = units_res.loc[sources, :]
+                
+                sub_FN_no_selfEdges      = sub_FN[sub_FN != 0]
+                sub_comp_FN_no_selfEdges = sub_comp_FN[sub_FN != 0]
+                if behavior == behaviorComp or f'{behaviorComp}_vs_{behavior}' in completed_comps:
+                    continue
+                else:
+                    completed_comps.append(f'{behavior}_vs_{behaviorComp}')
+
+                tmp_df = pd.DataFrame(data=zip(sub_FN_no_selfEdges - sub_comp_FN_no_selfEdges,
+                                               np.tile(units_res_sources['cortical_area'], sub_FN.shape[0]),
+                                               np.repeat(completed_comps[-1], sub_FN.size),
+                                               np.repeat(sub_basis, sub_FN.size)
+                                               ),
+                                      columns=['Wji_diff', 'input_area', 'Comparison_key', 'Units Subset', ])
+                weights_df = pd.concat((weights_df, tmp_df))
+            
+            FN_df[f'{behavior}'] = sub_FN_no_selfEdges
+                
+            
+    # if plot_auc_matched:
+    #     auc_df_auc_matched     = auc_df.loc[auc_df['Kinematics_AUC'] >= auc_df.loc[auc_df['Units Subset'] == 'Reach-Specific', 'Kinematics_AUC'].min(), :]
+    #     weights_df_auc_matched = weights_df.loc[weights_df['low_auc'] >= auc_df.loc[auc_df['Units Subset'] == 'Reach-Specific', 'Kinematics_AUC'].min(), :]
+
+    #     plot_wji_distributions_for_subsets(weights_df_auc_matched, paperFig = 'FigS7', figname_mod = '_AUCmatched', hue_order_FN=hue_order_FN, palette=palette)
+    #     plot_trajectory_correlation_and_auc_distributions_for_subsets(auc_df_auc_matched, weights_df_auc_matched, paperFig='FigS7', figname_mod = '_AUCmatched', hue_order_FN=hue_order_FN, palette=palette)
+    #     plot_modulation_for_subsets(auc_df_auc_matched, paperFig='Fig6', figname_mod = '_AUCmatched', hue_order_FN=hue_order_FN, palette=palette)
+    #     # plot_modulation_for_subsets(auc_df_auc_matched, paperFig='modulation', figname_mod = '_AUCmatched_noMUA', hue_order_FN=hue_order_FN, palette=palette)
+
+    # else:   
+    #     auc_df_auc_matched = None
+    #     weights_df_auc_matched = None
+
+    # plot_wji_distributions_for_subsets(weights_df, paperFig = 'Fig5', figname_mod = '', hue_order_FN=hue_order_FN, palette=palette) 
+    # plot_trajectory_correlation_and_auc_distributions_for_subsets(auc_df, weights_df, paperFig='Fig6', figname_mod = '', hue_order_FN=hue_order_FN, palette=palette)
+    # plot_modulation_for_subsets(auc_df, paperFig='Fig6', figname_mod = '_all', hue_order_FN=hue_order_FN, palette=palette)
+    # # plot_modulation_for_subsets(auc_df, paperFig='modulation', figname_mod = '_noMUA', hue_order_FN=hue_order_FN, palette=palette)
+
+
+    return weights_df   
+
 def plot_distributions_after_source_props(units_res, electrode_distances, 
-                                          traj_corr_df, FN_sets = [], subset_idxs = None, 
+                                          traj_corr_df, FN_sets = [], annotated_FN_dict = None, 
+                                          ext_FN = None, ret_FN = None, subset_idxs = None, 
                                           sub_type='both', subset_basis=['Reach-Specific'], 
                                           good_only=False, plot_auc_matched = True,
                                           hue_order_FN=None, palette=None):
@@ -1381,7 +1515,7 @@ def plot_distributions_after_source_props(units_res, electrode_distances,
                 targets, sources, sub_FN, sub_spontFN = np.arange(FN.shape[0]), sub_idxs, FN[np.ix_(range(FN.shape[0]), sub_idxs)], spontFN_for_diff[np.ix_(range(FN.shape[0]), sub_idxs)]
                 sub_dist = electrode_distances[np.ix_(range(FN.shape[0]), sub_idxs)]
                 units_res_subset_units = units_res.loc[sources, :]
-        
+                        
             units_res_targets = units_res.loc[targets, :]
             units_res_sources = units_res.loc[sources, :]
             
@@ -1445,6 +1579,16 @@ def plot_distributions_after_source_props(units_res, electrode_distances,
             tmp_df = tmp_df.loc[tmp_df['Wji'] != 0, :]
             tmp_df['pearson_r_squared'] = tmp_df['pearson_r']**2
             weights_df = pd.concat((weights_df, tmp_df))
+            
+            if annotated_FN_dict:
+                for behavior, behavior_FN in annotated_FN_dict.items():
+                    if sub_type == 'both':
+                        sub_FN = behavior_FN[np.ix_(sub_idxs, sub_idxs)]
+                    elif sub_type == 'target':
+                        sub_FN = behavior_FN[np.ix_(sub_idxs, range(behavior_FN.shape[1]))]
+                    elif sub_type == 'source':
+                        sub_FN = behavior_FN[np.ix_(range(behavior_FN.shape[0]), sub_idxs)]
+
     
             if FN_name == 'reachFN1':
                 tmp_auc_df = pd.DataFrame(data=zip(units_res_subset_units['traj_avgPos_auc'],
@@ -1457,12 +1601,21 @@ def plot_distributions_after_source_props(units_res, electrode_distances,
                                                    units_res_subset_units['maxDev_RP'],
                                                    units_res_subset_units['maxDev_RE'],
                                                    units_res_subset_units['reach_frate'],
-                                                   units_res_subset_units['spont_frate'],
+                                                   units_res_subset_units['spontaneous_frate'],
+                                                   units_res_subset_units['extension_frate'],
+                                                   units_res_subset_units['retraction_frate'],
+                                                   units_res_subset_units['rest_frate'],
+                                                   units_res_subset_units['groomed_frate'],
+                                                   units_res_subset_units['directed_arm_movement_frate'],
+                                                   units_res_subset_units['locomation_frate'],
+                                                   units_res_subset_units['climbing_frate'],
                                                    np.repeat(sub_basis, units_res_subset_units.shape[0]),
                                                    units_res_subset_units['quality']),
                                           columns=['Kinematics_AUC', 'cortical_area', 'frate_percent_increase', 
                                                    'mod_RO', 'mod_RP', 'mod_RE', 'dev_RO', 'dev_RP', 'dev_RE', 
-                                                   'reach_frate', 'spont_frate', 'Units Subset', 'quality'])
+                                                   'reach_frate', 'spont_frate', 'extension_frate', 'retraction_frate', 
+                                                   'rest_frate', 'groomed_frate', 'arm_movements_frate', 'locomation_frate',
+                                                   'climbing_frate', 'Units Subset', 'quality'])
                 auc_df = pd.concat((auc_df, tmp_auc_df))
     if plot_auc_matched:
         auc_df_auc_matched     = auc_df.loc[auc_df['Kinematics_AUC'] >= auc_df.loc[auc_df['Units Subset'] == 'Reach-Specific', 'Kinematics_AUC'].min(), :]
@@ -1486,8 +1639,6 @@ def plot_distributions_after_source_props(units_res, electrode_distances,
     return weights_df, auc_df, weights_df_auc_matched, auc_df_auc_matched
         
 def feature_correlation_plot(units_res, x_key, y_key, hue_key=None, col_key=None, paperFig='unknown'):
-    
-    units_res.to_csv(Path(plots) / f'{paperFig}_feature_correlation_units_res.csv')
     
     if 'W_in' in x_key and marmcode=='TY':
         xmin, xmax = 0, 0.12
@@ -1602,7 +1753,7 @@ def find_reach_specific_group(diff_df, model_1, model_2, paperFig = 'FigS5'):
         
         sign_test = binomtest(n2over1, nTests, p = 0.5, alternative='greater')
         proportion.append(np.round(sign_test.proportion_estimate, 2))
-        pval.append(np.round(sign_test.pvalue, 4))
+        pval.append(sign_test.pvalue)
 
     diff_df['generalization_proportion'] = proportion
     diff_df['pval'] = pval
@@ -1612,12 +1763,15 @@ def find_reach_specific_group(diff_df, model_1, model_2, paperFig = 'FigS5'):
     sorted_diff_df = diff_df.sort_values(by='auc_diff', ascending=False)
     sorted_diff_df['dist_positive_grad'] = np.hstack((np.abs(np.diff(sorted_diff_df['dist_from_unity'])),
                                                       [np.nan]))     
-    medFilt_grad = median_filter(sorted_diff_df['dist_positive_grad'], 8) #TODO 9
-    lastUnit = np.where(medFilt_grad < 0.1  * np.nanmax(medFilt_grad))[0][0] #TODO 0.075
+    # medFilt_grad = median_filter(sorted_diff_df['dist_positive_grad'], 9)
+    # lastUnit = np.where(medFilt_grad < 0.075 * np.nanmax(medFilt_grad))[0][0]
+    
+    medFilt_grad = median_filter(sorted_diff_df['dist_positive_grad'], 8)
+    lastUnit = np.where(medFilt_grad < 0.1  * np.nanmax(medFilt_grad))[0][0]
     top_value_cut = -12 if marmcode=='TY' else -3 
     tmp = sorted_diff_df['dist_positive_grad'].values
     tmp = tmp[~np.isnan(tmp)]
-    lastUnit = np.where(medFilt_grad < 0.1 * np.median(np.sort(tmp)[top_value_cut:]))[0][0] #TODO 0.075
+    lastUnit = np.where(medFilt_grad < 0.1 * np.median(np.sort(tmp)[top_value_cut:]))[0][0]
     
     plot_mult = 10 if marmcode == 'TY' else 5
     fig, ax = plt.subplots(figsize = plot_params.classifier_figSize, dpi=plot_params.dpi)
@@ -1636,8 +1790,8 @@ def find_reach_specific_group(diff_df, model_1, model_2, paperFig = 'FigS5'):
     plt.show()
 
     fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_classifier_selection.png'), bbox_inches='tight', dpi=plot_params.dpi)
-    sorted_diff_df.to_csv(os.path.join(plots, f'{paperFig}_{marmcode}_classifier_selection.csv'))
     
+
     # reach_specific_units_byStats = diff_df.index[diff_df['generalization_proportion'] >= .95]    
     # non_specific_units_byStats = diff_df.index[diff_df['generalization_proportion'] < 0.95]    
 
@@ -1967,7 +2121,6 @@ def compute_and_analyze_trajectory_correlations(units_res, posTraj_mean, velTraj
     sns.despine(ax=ax)
     plt.show()
     fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_wji_vs_pearson_r.png'), bbox_inches='tight', dpi=plot_params.dpi)
-    df.to_csv(os.path.join(plots, paperFig, f'{marmcode}_wji_vs_pearson_r.csv'))
     
     return df
 
@@ -1991,8 +2144,6 @@ def plot_FN_differences(FN, spontaneous_FN, reach_specific_reachFNs, reach_speci
         
         diff_df = pd.concat((diff_df, tmp_df), axis=0, ignore_index=True)
     
-    diff_df.to_csv(Path(plots) / f'{paperFig}_diff_df.csv')
-
     #------------------------------------------------------------------------------------
     
     fig, ax = plt.subplots(figsize = plot_params.distplot_figsize)
@@ -2040,7 +2191,7 @@ def plot_FN_differences(FN, spontaneous_FN, reach_specific_reachFNs, reach_speci
     print(f'Wji-Difference_reachFN2:  reach-spec vs non-spec, p={med_out[1]}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
     med_out = median_test(diff_df.loc[(diff_df['Units Subset'] == 'Reach-Specific') & (diff_df['Reach Set'] == 'reachFN2') , 'w_diff'], 
                           diff_df.loc[(diff_df['Units Subset'] == 'Full')   & (diff_df['Reach Set'] == 'reachFN2') , 'w_diff'])
-    print(f'Wji-Difference_reachFN2:  reach-spec vs full, p={med_out[1]}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
+    print(f'Wji-Difference_reachFN2:  reach-spec vs full, p={med_out[1], 4}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
     med_out = median_test(diff_df.loc[(diff_df['Units Subset'] == 'Non-Specific') & (diff_df['Reach Set'] == 'reachFN2') , 'w_diff'], 
                           diff_df.loc[(diff_df['Units Subset'] == 'Full')   & (diff_df['Reach Set'] == 'reachFN2') , 'w_diff'])
     print(f'Wji-Difference_reachFN2:  non-spec vs full, p={med_out[1]}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
@@ -2049,6 +2200,22 @@ def plot_FN_differences(FN, spontaneous_FN, reach_specific_reachFNs, reach_speci
 
     return           
 
+def add_all_FNs_to_annotated_dict(FN, spontaneous_FN, annotated_FN_dict=None, ext_FN=None, ret_FN=None):
+    
+    if not annotated_FN_dict:
+        annotated_FN_dict = dict()
+    
+    annotated_FN_dict['reach1'] = FN[0]
+    annotated_FN_dict['reach2'] = FN[1]
+    annotated_FN_dict['spontaneous'] = spontaneous_FN
+    
+    if ext_FN is not None:
+        annotated_FN_dict['extension']  = ext_FN
+    if ret_FN is not None:
+        annotated_FN_dict['retraction'] = ret_FN    
+    
+    return annotated_FN_dict
+    
 if __name__ == "__main__":
     
     os.makedirs(plots, exist_ok=True)
@@ -2064,9 +2231,23 @@ if __name__ == "__main__":
         
     with NWBHDF5IO(nwb_infile, 'r') as io:
         nwb = io.read()
-
         FN = nwb.scratch[params.FN_key].data[:] 
         spontaneous_FN = nwb.scratch['spontaneous_FN'].data[:]
+    # with NWBHDF5IO(reach_seg_nwbfile, 'r') as io:
+    #     nwb = io.read()
+    #     ext_FN = nwb.scratch[ 'extension_FN'].data[:] 
+    #     ret_FN = nwb.scratch['retraction_FN'].data[:] 
+
+    with NWBHDF5IO(annotated_nwbfile, 'r') as io_ann:
+        annotated_nwb = io_ann.read()
+        annotated_FN_dict = dict() 
+        for behavior in annotated_nwb.scratch.keys():
+            if behavior not in ['all_reach_FN', 'split_reach_FNs', 'spontaneous_FN', 'spikes_chronological', 'split_FNs_reach_sets', 'extension_FN', 'retraction_FN']:
+                annotated_FN_dict[behavior] = annotated_nwb.scratch[behavior].data[:]
+        ext_FN = annotated_nwb.scratch[ 'extension_FN'].data[:] 
+        ret_FN = annotated_nwb.scratch['retraction_FN'].data[:] 
+
+    annotated_FN_dict = add_all_FNs_to_annotated_dict(FN, spontaneous_FN, annotated_FN_dict, ext_FN, ret_FN)
 
     summarize_model_results(units=None, lead_lag_keys = params.best_lead_lag_key)
     
@@ -2089,13 +2270,28 @@ if __name__ == "__main__":
         
     _, cmin, cmax = plot_functional_networks(FN, units_res, FN_key = params.FN_key, paperFig='Fig1')
     _, _, _       = plot_functional_networks(spontaneous_FN, units_res, FN_key ='spontaneous_FN', paperFig='Fig1', cmin=cmin, cmax=cmax)
+    # _, _, _       = plot_functional_networks(ext_FN, units_res, FN_key ='extension_FN' , paperFig='extension_retraction_FNs', cmin=cmin, cmax=cmax)
+    # _, _, _       = plot_functional_networks(ret_FN, units_res, FN_key ='retraction_FN', paperFig='extension_retraction_FNs', cmin=cmin, cmax=cmax)
+    # for behavior, behavior_FN in annotated_FN_dict.items():
+    #     _, _, _ = plot_functional_networks(behavior_FN, units_res, FN_key = behavior, paperFig='Exploratory_Spont_FNs', cmin=cmin, cmax=cmax)
+
+
     # _, cmin, cmax =plot_functional_networks(spontaneous_FN, units_res, FN_key ='spontaneous_FN')
     # _, cmin, cmax = plot_functional_networks(FN, units_res, FN_key = params.FN_key, cmin=cmin, cmax=cmax)
 
     ymin, ymax = plot_weights_versus_interelectrode_distances(FN, spontaneous_FN, 
                                                               electrode_distances, paperFig='Fig1',
                                                               palette='FN_palette')
-    
+    # ymin, ymax = plot_weights_versus_interelectrode_distances(FN, spontaneous_FN, 
+    #                                                           electrode_distances, 
+    #                                                           annotated_FN_dict=annotated_FN_dict,
+    #                                                           paperFig='Exploratory_Spont_FNs',
+    #                                                           palette=None)
+    # ymin, ymax = plot_weights_versus_interelectrode_distances(FN, spontaneous_FN, 
+    #                                                           electrode_distances, 
+    #                                                           extend_retract_FNs=[ext_FN, ret_FN],
+    #                                                           paperFig='extension_retraction_FNs',
+    #                                                           palette=None)    
     style_key = None
     plotted_on_map_record = []
     model_list_x = [       'traj',    'position',          'traj_avgPos']
@@ -2122,6 +2318,8 @@ if __name__ == "__main__":
                                               targets = None, col_key = None, paperFig=fignum, asterisk='*')
         print(f'{model_y} v {model_x}, YES_tuning_filter: p={sign_test.pvalue}, nY={sign_test.k}, nUnits={sign_test.n}, prop={np.round(sign_test.proportion_estimate, 2)}')
 
+
+    
     diff_df = compute_performance_difference_by_unit(units_res, 'traj_avgPos_spont_train_reach_test_FN_auc', 'traj_avgPos_reach_FN_auc')   
     # reach_specific_units = diff_df.index[(diff_df.auc_diff > 0) & (diff_df.dist_from_unity > params.reach_specific_thresh) & (diff_df.dist_from_unity < 0.04)]
     reach_specific_units, non_specific_units = find_reach_specific_group(diff_df,
@@ -2140,12 +2338,25 @@ if __name__ == "__main__":
                                                              subset_idxs = reach_specific_units, subset_type=subset, paperFig='Fig5')
     reach_specific_spontFN , _, _ = plot_functional_networks(spontaneous_FN, units_res, FN_key ='spontaneous_FN', cmin=cmin, cmax=cmax, 
                                                              subset_idxs = reach_specific_units, subset_type=subset, paperFig='Fig5')
+    # reach_specific_extFN   , _, _ = plot_functional_networks(ext_FN, units_res, FN_key ='extension_FN', cmin=cmin, cmax=cmax, 
+    #                                                          subset_idxs = reach_specific_units, subset_type=subset, paperFig='extension_retraction_FNs')
+    # reach_specific_retFN   , _, _ = plot_functional_networks(ret_FN, units_res, FN_key ='retraction_FN', cmin=cmin, cmax=cmax, 
+    #                                                          subset_idxs = reach_specific_units, subset_type=subset, paperFig='extension_retraction_FNs')
+    # for behavior, behavior_FN in annotated_FN_dict.items():
+    #     _, _, _ = plot_functional_networks(behavior_FN, units_res, FN_key = behavior, paperFig='Exploratory_Spont_FNs', 
+    #                                        subset_idxs = reach_specific_units, subset_type=subset, cmin=cmin, cmax=cmax)
 
     non_specific_reachFNs, _, _ = plot_functional_networks(FN, units_res, FN_key = params.FN_key, cmin=cmin, cmax=cmax, 
-                                                           subset_idxs = non_specific_units, subset_type=subset, paperFig='Fig5')
+                                                            subset_idxs = non_specific_units, subset_type=subset, paperFig='Fig5')
     non_specific_spontFN , _, _ = plot_functional_networks(spontaneous_FN, units_res, FN_key ='spontaneous_FN', cmin=cmin, cmax=cmax, 
-                                                           subset_idxs = non_specific_units, subset_type=subset, paperFig='Fig5')
-
+                                                            subset_idxs = non_specific_units, subset_type=subset, paperFig='Fig5')
+    # non_specific_extFN   , _, _ = plot_functional_networks(ext_FN, units_res, FN_key ='extension_FN', cmin=cmin, cmax=cmax, 
+    #                                                        subset_idxs = non_specific_units, subset_type=subset, paperFig='extension_retraction_FNs')
+    # non_specific_retFN   , _, _ = plot_functional_networks(ret_FN, units_res, FN_key ='retraction_FN', cmin=cmin, cmax=cmax, 
+    #                                                        subset_idxs = non_specific_units, subset_type=subset, paperFig='extension_retraction_FNs')
+    # for behavior, behavior_FN in annotated_FN_dict.items():
+    #     _, _, _ = plot_functional_networks(behavior_FN, units_res, FN_key = behavior, paperFig='Exploratory_Spont_FNs', 
+    #                                        subset_idxs = non_specific_units, subset_type=subset, cmin=cmin, cmax=cmax)
 
     reach_specific_units_res = units_res.loc[reach_specific_units, :]
     non_specific_units_res   = units_res.loc[non_specific_units, :]
@@ -2225,16 +2436,6 @@ if __name__ == "__main__":
                                               minauc = 0.45, maxauc = 0.8, hue_key='W_in', style_key=style_key, 
                                               targets = None, col_key = None, paperFig=fignum, asterisk='')
         print(f'{model_y} v {model_x}, YES_tuning_filter: p={sign_test.pvalue}, nY={sign_test.k}, nUnits={sign_test.n}, prop={np.round(sign_test.proportion_estimate, 2)}')
-
-    model_list_x = [  'shortTraj',        'traj', 'shortTraj_avgPos', 'traj_avgPos_shuffled_spikes', 'traj_avgPos_shuffled_traj']
-    model_list_y = ['traj_avgPos', 'traj_avgPos',      'traj_avgPos',                 'traj_avgPos',               'traj_avgPos']
-    fig_list     = [    'unknown',     'unknown',          'unknown',                     'unknown',                   'unknown']
-    for model_x, model_y, fignum in zip(model_list_x, model_list_y, fig_list):    
-        sign_test = plot_model_auc_comparison(units_res, model_x, model_y, 
-                                              minauc = 0.45, maxauc = 0.8, hue_key='W_in', style_key=style_key, 
-                                              targets = None, col_key = None, paperFig=fignum, asterisk='')
-        print(f'{model_y} v {model_x}, NO_tuning_filter: p={sign_test.pvalue}, nY={sign_test.k}, nUnits={sign_test.n}, prop={np.round(sign_test.proportion_estimate, 2)}')
-
 
     if save_kinModels_pkl:
         with open(pkl_outfile, 'wb') as f:

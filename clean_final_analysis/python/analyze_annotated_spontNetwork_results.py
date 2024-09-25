@@ -589,6 +589,7 @@ def plot_model_auc_comparison(units_res, x_key, y_key, minauc = 0.5, maxauc = 1.
         plot_name += f'_coloredBy_{params.test_behavior}'
 
     fig.savefig(Path(fig_base) / f'{plot_name}{extra_label}.png', bbox_inches='tight', dpi=plot_params.dpi)
+    units_res_plots.to_csv(f'{fig_base}_{paperFig}_{plot_name}{extra_label}.csv')
 
     return sign_test
 
@@ -808,7 +809,8 @@ def plot_functional_networks(FN, units_res, FN_key = 'split_reach_FNs',
             
             fig.savefig(os.path.join(plots, paperFig, 
                                      f'{marmcode}_functional_network_{title.replace(" ", "_").replace("-", "_")}.png'), bbox_inches='tight', dpi=plot_params.dpi)
-            
+            np.savetxt(os.path.join(plots, f'{paperFig}_functional_network_{title.replace(" ", "_").replace("-", "_")}.csv'), network_copy, delimiter=',') 
+
             plt.show()
             
         else:
@@ -828,7 +830,8 @@ def plot_functional_networks(FN, units_res, FN_key = 'split_reach_FNs',
             gen_test_label = '' if gen_test_behavior is None else gen_test_behavior
             fig.savefig(os.path.join(plots, paperFig, 
                                      f'{marmcode}_functional_network_{gen_test_label}_{title.replace(" ", "_").replace("-", "_")}.png'), bbox_inches='tight', dpi=plot_params.dpi)
-            
+            np.savetxt(os.path.join(plots, f'{paperFig}_{gen_test_label}_functional_network_{title.replace(" ", "_").replace("-", "_")}.csv'), network_copy, delimiter=',') 
+
             plt.show()
     
         # plt.hist(network_copy.flatten(), bins = 30)
@@ -906,6 +909,9 @@ def plot_weights_versus_interelectrode_distances(FN, spontaneous_FN, electrode_d
         plt.show()
         
         fig2.savefig(os.path.join(plots, paperFig, f'{marmcode}_weights_by_distance_Rest_Locomotion.png'), bbox_inches='tight', dpi=plot_params.dpi)
+        dist_counts = behavior_df.groupby('Distance').count()['Wji']
+        dist_counts.to_csv(os.path.join(plots, 'Rest_Locomotion_FigS_9_10a_counts.csv'))
+        behavior_df.to_csv(os.path.join(plots, 'Rest_Locomotion_FigS_9_10a_values.csv'))
 
         fig3, ax3 = plt.subplots(figsize=plot_params.weights_by_distance_figsize, dpi=plot_params.dpi)
         sns.lineplot(ax = ax3, data=ext_ret_df, x='Distance', y='Wji', hue='Reaches', 
@@ -921,7 +927,9 @@ def plot_weights_versus_interelectrode_distances(FN, spontaneous_FN, electrode_d
             ymin, ymax = ax3.get_ylim()
         plt.show()
         fig3.savefig(os.path.join(plots, paperFig, f'{marmcode}_weights_by_distance_Extension_Retraction.png'), bbox_inches='tight', dpi=plot_params.dpi)
-
+        dist_counts = ext_ret_df.groupby('Distance').count()['Wji']
+        dist_counts.to_csv(os.path.join(plots, 'Extension_Retraction_FigS_9_10c_counts.csv'))
+        ext_ret_df.to_csv(os.path.join(plots, 'Extension_Retraction_FigS_9_10c_values.csv'))
 
     # elif extend_retract_FNs:
     #     ext_ret_df = weights_df.copy()
@@ -968,7 +976,10 @@ def plot_weights_versus_interelectrode_distances(FN, spontaneous_FN, electrode_d
         plt.show()
         
         fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_weights_by_distance.png'), bbox_inches='tight', dpi=plot_params.dpi)
-    
+        dist_counts = weights_df.groupby('Distance').count()['Wji']
+        dist_counts.to_csv(os.path.join(plots, 'Fig1d_counts.csv'))
+        weights_df.to_csv(os.path.join(plots, 'Fig1d_values.csv'))
+        
     return ymin, ymax          
 
 def add_in_weight_to_units_df(units_res, FN):
@@ -1158,7 +1169,7 @@ def evaluate_effect_of_network_shuffles(lead_lag_key, comparison_model,
             nUnits = np.sum(stats_df['metric'] == 'strength')
             
             sign_test = binomtest(nStrength, nUnits, p = 0.5, alternative='greater')
-            print(f'Strength != Random, {percent}%, {mode}:  p={np.round(sign_test.pvalue, 4)}, nStrength={sign_test.k}, nUnits={sign_test.n}, prop={np.round(sign_test.proportion_estimate, 2)}')
+            print(f'Strength != Random, {percent}%, {mode}:  p={sign_test.pvalue}, nStrength={sign_test.k}, nUnits={sign_test.n}, prop={np.round(sign_test.proportion_estimate, 2)}')
 
             if sign_test.pvalue < alpha:
                 sig_strength_v_random[mode].append(percent)
@@ -1172,7 +1183,7 @@ def evaluate_effect_of_network_shuffles(lead_lag_key, comparison_model,
             nUnits = np.sum(stats_df['metric'] == 'strength')
             
             sign_test = binomtest(nStrength, nUnits, p = 0.5, alternative='two-sided')
-            print(f'Strength != No-FN, {percent}%, {mode}:  p={np.round(sign_test.pvalue, 4)}, nStrength={sign_test.k}, nUnits={sign_test.n}, prop={np.round(sign_test.proportion_estimate, 2)}')
+            print(f'Strength != No-FN, {percent}%, {mode}:  p={sign_test.pvalue}, nStrength={sign_test.k}, nUnits={sign_test.n}, prop={np.round(sign_test.proportion_estimate, 2)}')
 
             if sign_test.pvalue < alpha:
                 sig_noFN_v_strength[mode].append(percent)
@@ -1186,7 +1197,7 @@ def evaluate_effect_of_network_shuffles(lead_lag_key, comparison_model,
             nUnits = np.sum(stats_df['metric'] == 'random')
             
             sign_test = binomtest(nStrength, nUnits, p = 0.5, alternative='two-sided')
-            print(f'Random != No-FN, {percent}%, {mode}:  p={np.round(sign_test.pvalue, 4)}, nRandom={sign_test.k}, nUnits={sign_test.n}, prop={np.round(sign_test.proportion_estimate, 2)}')
+            print(f'Random != No-FN, {percent}%, {mode}:  p={sign_test.pvalue}, nRandom={sign_test.k}, nUnits={sign_test.n}, prop={np.round(sign_test.proportion_estimate, 2)}')
     
             if sign_test.pvalue < alpha:
                 sig_noFN_v_random[mode].append(percent)
@@ -1200,7 +1211,7 @@ def evaluate_effect_of_network_shuffles(lead_lag_key, comparison_model,
             nUnits = stats_df.shape[0]
             
             sign_test = binomtest(nFullShuffle, nUnits, p = 0.5, alternative='greater')
-            print(f'fullShuffle > partialShuffle, {percent}%, {mode}:  p={np.round(sign_test.pvalue, 6)}, nStrength={sign_test.k}, nUnits={sign_test.n}, prop={np.round(sign_test.proportion_estimate, 2)}')
+            print(f'fullShuffle > partialShuffle, {percent}%, {mode}:  p={sign_test.pvalue}, nStrength={sign_test.k}, nUnits={sign_test.n}, prop={np.round(sign_test.proportion_estimate, 2)}')
 
             # if sign_test.proportion_estimate > 0.77:
             #     sig_strength_v_fullShuffle[mode].append(percent)
@@ -1221,7 +1232,7 @@ def evaluate_effect_of_network_shuffles(lead_lag_key, comparison_model,
                 nUnits = np.sum(stats_df['metric'] == 'difference')
                 
                 sign_test = binomtest(nMaxDiff, nUnits, p = 0.5, alternative='greater')
-                print(f'percentMaxDiff > percentDiff, {percent}%, {mode}:  p={np.round(sign_test.pvalue, 4)}, nStrength={sign_test.k}, nUnits={sign_test.n}, prop={np.round(sign_test.proportion_estimate, 2)}')
+                print(f'percentMaxDiff > percentDiff, {percent}%, {mode}:  p={sign_test.pvalue}, nStrength={sign_test.k}, nUnits={sign_test.n}, prop={np.round(sign_test.proportion_estimate, 2)}')
     
                 if sign_test.pvalue >= alpha:
                     nonsig_diff[mode].append(idx)
@@ -1283,6 +1294,7 @@ def evaluate_effect_of_network_shuffles(lead_lag_key, comparison_model,
     # fig.set(ylim=ylim)
     # fig.set_axis_labels('Percent of Weights Shuffled', 'AUC Percent Loss')
     fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_shuffled_network_auc_loss_summary_figure_{comparison_model}_{target_string}_alpha_pt0{alpha*100}.png'), bbox_inches='tight', dpi=plot_params.dpi)    
+    train_auc_df.to_csv(os.path.join(plots, 'Fig4.csv'))
 
     return train_auc_df
 
@@ -1309,18 +1321,18 @@ def plot_modulation_for_subsets(auc_df, paperFig = 'unknown', figname_mod = '', 
             med_out = median_test(tmp_df.loc[tmp_df['Units Subset'] == 'Reach-Specific', metric], 
                                   tmp_df.loc[tmp_df['Units Subset'] == 'Non-Specific', metric],
                                   nan_policy='omit')
-            print(f'{metric}_{figname_mod}: reach v non, p={np.round(med_out[1], 4)}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
+            print(f'{metric}_{figname_mod}: reach v non, p={med_out[1]}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
             pval = np.round(med_out[1], 2)
             
             med_out = median_test(tmp_df.loc[tmp_df['Units Subset'] == 'Reach-Specific', metric], 
                                   tmp_df.loc[tmp_df['Units Subset'] == 'Full', metric],
                                   nan_policy='omit')
             pval_full = np.round(med_out[1], 3) 
-            print(f'{metric}_{figname_mod}: reach v full, p={np.round(med_out[1], 4)}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
+            print(f'{metric}_{figname_mod}: reach v full, p={med_out[1]}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
             med_out = median_test(tmp_df.loc[tmp_df['Units Subset'] == 'Non-Specific', metric], 
                                   tmp_df.loc[tmp_df['Units Subset'] == 'Full', metric],
                                   nan_policy='omit')
-            print(f'{metric}_{figname_mod}: non v full, p={np.round(med_out[1], 4)}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
+            print(f'{metric}_{figname_mod}: non v full, p={med_out[1]}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
             
             subset_colors = plt.get_cmap('Dark2').colors
             full_index = [idx for idx, subset in enumerate(hue_order_FN) if 'full' in subset.lower()][0]
@@ -1355,6 +1367,7 @@ def plot_modulation_for_subsets(auc_df, paperFig = 'unknown', figname_mod = '', 
             ax.text(tmp_df[metric].max()*0.75, ax.get_ylim()[-1]*0.6, f'p={pval}', horizontalalignment='left', fontsize = plot_params.tick_fontsize)
             plt.show()        
             fig.savefig(os.path.join(plot_save_dir, f'{figname_mod[1:]}_{marmcode}_distribution_{metric}_histogram_highlighted_with_reachspecific{figname_mod}.png'), bbox_inches='tight', dpi=plot_params.dpi)    
+            tmp_df.to_csv(os.path.join(plot_save_dir, f'{figname_mod[1:]}_{marmcode}_distribution_{metric}_histogram_highlighted_with_reachspecific{figname_mod}.csv'))
 
 def add_neuron_classifications(units_res):
     if marmcode == 'TY':
@@ -1402,6 +1415,7 @@ def plot_average_frates_simple(average_rates_df, paperFig, to_plot=None, behavio
     ax1.set_yticks([])
     ax1.set_xlabel('Firing rate (spikes/s)')
     fig1.savefig(os.path.join(plots, paperFig, f'{marmcode}_behavior_firing_rates.png'), bbox_inches='tight', dpi=plot_params.dpi)    
+    frates_sns.to_csv(os.path.join(plots, paperFig, f'{marmcode}_behavior_firing_rates.csv'))
 
     fig2, ax2 = plt.subplots(figsize = plot_params.frate_figsize)
     sns.kdeplot(data=frates_sns.loc[(frates_sns['Behavior'] == 'Extension') | (frates_sns['Behavior'] == 'Retraction') | (frates_sns['Behavior'] == 'Reach')], 
@@ -1435,6 +1449,7 @@ def plot_average_frates_simple(average_rates_df, paperFig, to_plot=None, behavio
     
 def plot_wji_distributions_for_subsets(weights_df, paperFig = 'unknown', figname_mod = '', hue_order_FN=None, palette=None):
     
+    weights_df.to_csv(Path(plots) / f'{paperFig}_wji.csv')
     
     for sub_basis in np.unique(weights_df['Units Subset']):
         fig, ax = plt.subplots(figsize=plot_params.distplot_figsize)
@@ -1450,14 +1465,13 @@ def plot_wji_distributions_for_subsets(weights_df, paperFig = 'unknown', figname
         ax.set_yticks([0, 1])
         sns.despine(ax=ax)
         plt.show()
-        fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_cumDist_Wji_{sub_basis}_huekey_FNkey{figname_mod}.png'), bbox_inches='tight', dpi=plot_params.dpi)    
-
+        fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_cumDist_Wji_{sub_basis}_huekey_FNkey{figname_mod}.png'), bbox_inches='tight', dpi=plot_params.dpi)
         med_out = median_test(weights_df.loc[(weights_df['Units Subset'] == sub_basis) & (weights_df['FN_key'] == 'reachFN1') , 'Wji'], 
                               weights_df.loc[(weights_df['Units Subset'] == sub_basis) & (weights_df['FN_key'] == 'spontaneousFN' ) , 'Wji'])
-        print(f'Wji_{sub_basis}{figname_mod}: reachFN1 v spont, p={np.round(med_out[1], 4)}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
+        print(f'Wji_{sub_basis}{figname_mod}: reachFN1 v spont, p={med_out[1]}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
         med_out = median_test(weights_df.loc[(weights_df['Units Subset'] == sub_basis) & (weights_df['FN_key'] == 'reachFN2') , 'Wji'], 
                               weights_df.loc[(weights_df['Units Subset'] == sub_basis) & (weights_df['FN_key'] == 'spontaneousFN' ) , 'Wji'])
-        print(f'Wji_{sub_basis}{figname_mod}: reachFN1 v spont, p={np.round(med_out[1], 4)}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
+        print(f'Wji_{sub_basis}{figname_mod}: reachFN1 v spont, p={med_out[1]}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
                 
 
     for FN_key in np.unique(weights_df['FN_key']):
@@ -1478,15 +1492,15 @@ def plot_wji_distributions_for_subsets(weights_df, paperFig = 'unknown', figname
 
         med_out = median_test(weights_df.loc[(weights_df['Units Subset'] == 'Reach-Specific') & (weights_df['FN_key'] == FN_key) , 'Wji'], 
                               weights_df.loc[(weights_df['Units Subset'] == 'Non-Specific') & (weights_df['FN_key'] == FN_key ) , 'Wji'])
-        print(f'Wji_{FN_key}{figname_mod}: reach-spec v non-spec, p={np.round(med_out[1], 4)}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
+        print(f'Wji_{FN_key}{figname_mod}: reach-spec v non-spec, p={med_out[1]}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
        
         med_out = median_test(weights_df.loc[(weights_df['Units Subset'] == 'Reach-Specific') & (weights_df['FN_key'] == FN_key) , 'Wji'], 
                               weights_df.loc[(weights_df['Units Subset'] == 'Full') & (weights_df['FN_key'] == FN_key ) , 'Wji'])
-        print(f'Wji_{FN_key}{figname_mod}: reach-spec v original, p={np.round(med_out[1], 4)}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
+        print(f'Wji_{FN_key}{figname_mod}: reach-spec v original, p={med_out[1]}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
 
         med_out = median_test(weights_df.loc[(weights_df['Units Subset'] == 'Non-Specific') & (weights_df['FN_key'] == FN_key) , 'Wji'], 
                               weights_df.loc[(weights_df['Units Subset'] == 'Full') & (weights_df['FN_key'] == FN_key ) , 'Wji'])
-        print(f'Wji_{FN_key}{figname_mod}: non_reach-spec v original, p={np.round(med_out[1], 4)}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
+        print(f'Wji_{FN_key}{figname_mod}: non_reach-spec v original, p={med_out[1]}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
     
         if 'reachFN' in FN_key:    
             for w_diff_key, w_diff_label in zip(['Wji_diff', 'absolute_Wji_diff'], ['$W_{{ji}}$ (reachFN) - $W_{{ji}}$ (spontaneousFN)', '|$W_{{ji}}$ (reachFN) - $W_{{ji}}$ (spontaneousFN)|']):  
@@ -1506,13 +1520,13 @@ def plot_wji_distributions_for_subsets(weights_df, paperFig = 'unknown', figname
                 fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_{w_diff_key}_cumulative_dist_{FN_key}_minus_spont{figname_mod}.png'), bbox_inches='tight', dpi=plot_params.dpi)
                 med_out = median_test(weights_df.loc[(weights_df['Units Subset'] == 'Reach-Specific') & (weights_df['FN_key'] == FN_key), w_diff_key], 
                                       weights_df.loc[(weights_df['Units Subset'] == 'Non-Specific')   & (weights_df['FN_key'] == FN_key), w_diff_key])
-                print(f'{w_diff_key}_{FN_key}{figname_mod}:  reach-spec vs non-spec, p={np.round(med_out[1], 4)}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
+                print(f'{w_diff_key}_{FN_key}{figname_mod}:  reach-spec vs non-spec, p={med_out[1]}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
                 med_out = median_test(weights_df.loc[(weights_df['Units Subset'] == 'Reach-Specific') & (weights_df['FN_key'] == FN_key), w_diff_key], 
                                       weights_df.loc[(weights_df['Units Subset'] == 'Full')   & (weights_df['FN_key'] == FN_key), w_diff_key])
-                print(f'{w_diff_key}_{FN_key}{figname_mod}:  reach-spec vs full, p={np.round(med_out[1], 4)}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
+                print(f'{w_diff_key}_{FN_key}{figname_mod}:  reach-spec vs full, p={med_out[1]}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
                 med_out = median_test(weights_df.loc[(weights_df['Units Subset'] == 'Non-Specific') & (weights_df['FN_key'] == FN_key), w_diff_key], 
                                       weights_df.loc[(weights_df['Units Subset'] == 'Full')   & (weights_df['FN_key'] == FN_key), w_diff_key])
-                print(f'{w_diff_key}_{FN_key}{figname_mod}:  non-spec vs full, p={np.round(med_out[1], 4)}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
+                print(f'{w_diff_key}_{FN_key}{figname_mod}:  non-spec vs full, p={med_out[1]}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
                                                                                      
     # fig, ax = plt.subplots(figsize=plot_params.stripplot_figsize, dpi=plot_params.dpi)
     # sns.stripplot(ax=ax, data=weights_df, x='Units Subset', y='Wji', hue='FN_key', 
@@ -1582,18 +1596,19 @@ def plot_trajectory_correlation_and_auc_distributions_for_subsets(auc_df, weight
     ax.set_xlabel('Full kinematics AUC', fontsize=plot_params.axis_fontsize)
     plt.show()        
     fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_cumDist_KinAUC_huekey_UnitsSubset{figname_mod}.png'), bbox_inches='tight', dpi=plot_params.dpi)    
+    auc_df.to_csv(os.path.join(plots, paperFig, f'{marmcode}_cumDist_KinAUC_huekey_UnitsSubset{figname_mod}.csv'))
 
     #---------------------------------------------------------------------------------
     med_out = median_test(auc_df.loc[auc_df['Units Subset'] == 'Reach-Specific', 'Kinematics_AUC'], 
                           auc_df.loc[auc_df['Units Subset'] == 'Non-Specific', 'Kinematics_AUC'])
-    print(f'Kin_AUC{figname_mod}: reach v non, p={np.round(med_out[1], 4)}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
+    print(f'Kin_AUC{figname_mod}: reach v non, p={med_out[1]}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
        
     med_out = median_test(auc_df.loc[auc_df['Units Subset'] == 'Reach-Specific', 'Kinematics_AUC'], 
                           auc_df.loc[auc_df['Units Subset'] == 'Full', 'Kinematics_AUC'])
-    print(f'Kin_AUC{figname_mod}: reach v full, p={np.round(med_out[1], 4)}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
+    print(f'Kin_AUC{figname_mod}: reach v full, p={med_out[1]}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
     med_out = median_test(auc_df.loc[auc_df['Units Subset'] == 'Non-Specific', 'Kinematics_AUC'], 
                           auc_df.loc[auc_df['Units Subset'] == 'Full', 'Kinematics_AUC'])
-    print(f'Kin_AUC{figname_mod}: non v full, p={np.round(med_out[1], 4)}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
+    print(f'Kin_AUC{figname_mod}: non v full, p={med_out[1]}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
     
     fig, ax = plt.subplots(figsize=plot_params.distplot_figsize)
     sns.kdeplot(ax=ax, data=auc_df, palette=palette, linewidth=plot_params.distplot_linewidth,
@@ -1603,18 +1618,19 @@ def plot_trajectory_correlation_and_auc_distributions_for_subsets(auc_df, weight
     ax.set_xlabel('Full kinematics AUC', fontsize=plot_params.axis_fontsize)
     plt.show()        
     fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_distribution_KinAUC_huekey_UnitsSubset{figname_mod}.png'), bbox_inches='tight', dpi=plot_params.dpi)    
+    auc_df.to_csv(os.path.join(plots, paperFig, f'{marmcode}_distribution_KinAUC_huekey_UnitsSubset{figname_mod}.csv'))
 
     #---------------------------------------------------------------------------------    
 
     med_out = median_test(weights_df.loc[weights_df['Units Subset'] == 'Reach-Specific', 'pearson_r'], 
                           weights_df.loc[weights_df['Units Subset'] == 'Non-Specific', 'pearson_r'])
-    print(f'pearson_corr{figname_mod}: reach v non, p={np.round(med_out[1], 4)}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
+    print(f'pearson_corr{figname_mod}: reach v non, p={med_out[1]}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
     med_out = median_test(weights_df.loc[weights_df['Units Subset'] == 'Reach-Specific', 'pearson_r'], 
                           weights_df.loc[weights_df['Units Subset'] == 'Full', 'pearson_r'])
-    print(f'pearson_corr{figname_mod}: reach v full, p={np.round(med_out[1], 4)}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
+    print(f'pearson_corr{figname_mod}: reach v full, p={med_out[1]}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
     med_out = median_test(weights_df.loc[weights_df['Units Subset'] == 'Non-Specific', 'pearson_r'], 
                           weights_df.loc[weights_df['Units Subset'] == 'Full', 'pearson_r'])
-    print(f'pearson_corr{figname_mod}: non v full, p={np.round(med_out[1], 4)}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
+    print(f'pearson_corr{figname_mod}: non v full, p={med_out[1]}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
         
     fig, ax = plt.subplots(figsize=plot_params.distplot_figsize)
     sns.kdeplot(ax=ax, data=weights_df, palette=palette, linewidth=plot_params.distplot_linewidth,
@@ -1624,7 +1640,7 @@ def plot_trajectory_correlation_and_auc_distributions_for_subsets(auc_df, weight
     sns.despine(ax=ax)
     plt.show()    
     fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_distribution_pearson_r_huekey_UnitsSubset{figname_mod}.png'), bbox_inches='tight', dpi=plot_params.dpi)    
-
+    # weights_df.to_csv(os.path.join(plots, paperFig, f'{marmcode}_distribution_pearson_r_huekey_UnitsSubset{figname_mod}.csv'))
 
 def NO_SUMS_plot_in_and_out_weights_of_functional_groups(units_res, annotated_FN_dict, outside_group_only = False, 
                                                  subset_idxs = None, subset_basis=['Reach-Specific'],
@@ -1768,7 +1784,7 @@ def make_in_and_out_weight_distribution_plots(weights_df, behavior, comp_behavio
                                              (weights_df['Behavior'] == behave)     & \
                                              (weights_df['FG Member'] == 'outFG'),        'Wji']
                               )
-        print(f'Wji, {behave}, {subset}: within vs outside FG, p={np.round(med_out[1], 4)}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
+        print(f'Wji, {behave}, {subset}: within vs outside FG, p={med_out[1]}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
         
         
         plt.show()
@@ -2126,23 +2142,26 @@ def find_reach_specific_group(diff_df, model_1, model_2, paperFig = 'FigS5', gen
     diff_df[model_2] = full_res_model_2.mean(axis=1)   
 
     sorted_diff_df = diff_df.sort_values(by='auc_diff', ascending=False)
-    sorted_diff_df['dist_positive_grad'] = np.hstack((np.abs(np.diff(sorted_diff_df['dist_from_unity'])),
-                                                      [np.nan]))     
-    medFilt_grad = median_filter(sorted_diff_df['dist_positive_grad'], 8) #TODO 9
+    # sorted_diff_df['dist_positive_grad'] = np.hstack((np.abs(np.diff(sorted_diff_df['dist_from_unity'])),
+    #                                                   [np.nan]))     
+    sorted_diff_df['derivative_auc_diff'] = np.hstack((np.abs(np.diff(sorted_diff_df['auc_diff'])),
+                                                      [np.nan]))  
+    medFilt_grad = median_filter(sorted_diff_df['derivative_auc_diff'], 8) #TODO 9
+    sorted_diff_df['medfilt_derivative_auc_diff'] = medFilt_grad
     lastUnit = np.where(medFilt_grad < 0.1  * np.nanmax(medFilt_grad))[0][0] #TODO 0.075
     top_value_cut = -12 if marmcode=='TY' else -3 
-    tmp = sorted_diff_df['dist_positive_grad'].values
+    tmp = sorted_diff_df['derivative_auc_diff'].values
     tmp = tmp[~np.isnan(tmp)]
     lastUnit = np.where(medFilt_grad < 0.1 * np.median(np.sort(tmp)[top_value_cut:]))[0][0] #TODO 0.075
     if marmcode=='TY' and gen_test_behavior.lower()=='rest':
         lastUnit = 60 # TODO
     
-    plot_mult = 10 if marmcode == 'TY' else 5
+    plot_mult = 5 if marmcode == 'TY' else 3
     fig, ax = plt.subplots(figsize = plot_params.classifier_figSize, dpi=plot_params.dpi)
     ax.plot(np.arange(diff_df.shape[0]), sorted_diff_df['auc_diff'], linewidth = plot_params.distplot_linewidth)
-    ax.plot(np.arange(diff_df.shape[0]), sorted_diff_df['dist_positive_grad']*plot_mult, linewidth = plot_params.distplot_linewidth)
+    ax.plot(np.arange(diff_df.shape[0]), sorted_diff_df['derivative_auc_diff']*plot_mult, linewidth = plot_params.distplot_linewidth)
     ax.plot(np.arange(diff_df.shape[0]), medFilt_grad*plot_mult, linewidth = plot_params.distplot_linewidth)
-    ax.vlines(lastUnit, 0, np.max([sorted_diff_df['auc_diff'].max(), sorted_diff_df['dist_positive_grad'].max()*2]), 
+    ax.vlines(lastUnit, 0, np.max([sorted_diff_df['auc_diff'].max(), sorted_diff_df['derivative_auc_diff'].max()*2]), 
               'black', linewidth=0.5, linestyle = '--')
     ax.set_xticks([lastUnit, diff_df.shape[0]])
     ax.legend(labels=['AUC difference', 'd(AUC difference)/dUnit', 'Median filter of d/dUnit'],
@@ -2154,7 +2173,8 @@ def find_reach_specific_group(diff_df, model_1, model_2, paperFig = 'FigS5', gen
     plt.show()
 
     fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_classifier_selection_{gen_test_behavior}.png'), bbox_inches='tight', dpi=plot_params.dpi)
-
+    sorted_diff_df.to_csv(os.path.join(plots, f'{paperFig}_{marmcode}_classifier_selection_{gen_test_behavior}.csv'))
+    
     # reach_specific_units_byStats = diff_df.index[diff_df['generalization_proportion'] >= .95]    
     # non_specific_units_byStats = diff_df.index[diff_df['generalization_proportion'] < 0.95]    
 
@@ -2200,13 +2220,13 @@ def plot_FN_differences(FN1, FN2, CS_FN1, CS_FN2, CI_FN1, CI_FN2,
     fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_w_diff_cumulative_dist_reachFN1_minus_{FN_labels[1]}'), bbox_inches='tight', dpi=plot_params.dpi)
     med_out = median_test(diff_df.loc[(diff_df['Units Subset'] == 'Reach-Specific') , 'w_diff'], 
                           diff_df.loc[(diff_df['Units Subset'] == 'Non-Specific'), 'w_diff'])
-    print(f'Wji-Difference_reachFN1:  reach-spec vs non-spec, p={np.round(med_out[1], 4)}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
+    print(f'Wji-Difference_reachFN1:  reach-spec vs non-spec, p={med_out[1]}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
     med_out = median_test(diff_df.loc[(diff_df['Units Subset'] == 'Reach-Specific')  , 'w_diff'], 
                           diff_df.loc[(diff_df['Units Subset'] == 'Full')    , 'w_diff'])
-    print(f'Wji-Difference_reachFN1:  reach-spec vs full, p={np.round(med_out[1], 4)}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
+    print(f'Wji-Difference_reachFN1:  reach-spec vs full, p={med_out[1]}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
     med_out = median_test(diff_df.loc[(diff_df['Units Subset'] == 'Non-Specific') , 'w_diff'], 
                           diff_df.loc[(diff_df['Units Subset'] == 'Full')  , 'w_diff'])
-    print(f'Wji-Difference_reachFN1:  non-spec vs full, p={np.round(med_out[1], 4)}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
+    print(f'Wji-Difference_reachFN1:  non-spec vs full, p={med_out[1]}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
         
     return   
 
@@ -2733,8 +2753,11 @@ if __name__ == "__main__":
                                                gen_test_behavior=full_test_behavior,
                                                hue_order_FN=['Reach-Specific', 'Non-Specific', 'Full'], palette=fig6_palette,
                                                paperFig = 'FigS10_and_11')
-    
-    
+        
+        comp_key = [key for key in weights_df['Comparison_key'].unique() if key.lower() == f'{gen_test_behavior}_vs_reach1'][0] 
+        source_data_weights_df = weights_df.loc[weights_df['Comparison_key'] == comp_key, :]
+        source_data_weights_df.to_csv(os.path.join(plots, f'FigS11_and_12_{marmcode}_distribution_pearson_r_huekey_UnitsSubset_{gen_test_behavior}.csv'))
+
         plot_result_on_channel_map(units_res, jitter_radius = .2, hue_key='Units Subset', 
                                    size_key = None,  title_type = 'hue', style_key=style_key,
                                    paperFig='Revision_Plots', hue_order = ['Reach-Specific', 'Non-Specific'], 
