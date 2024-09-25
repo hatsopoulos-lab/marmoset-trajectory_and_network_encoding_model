@@ -1,3 +1,4 @@
+[![DOI](https://zenodo.org/badge/674389974.svg)](https://zenodo.org/doi/10.5281/zenodo.13840245)
 # marmoset-trajectory_and_network_encoding_model
 
 # Overview
