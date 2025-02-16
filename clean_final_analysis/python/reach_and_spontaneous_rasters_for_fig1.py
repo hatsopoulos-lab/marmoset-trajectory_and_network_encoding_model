@@ -190,9 +190,9 @@ class fig3_params:
     xromm_fps = 200   
     
 plt.rcParams['figure.dpi'] = plot_params.dpi
-plt.rcParams['savefig.dpi'] = plot_params.dpi
-plt.rcParams['font.family'] = 'Dejavu Sans'
-plt.rcParams['font.sans-serif'] = 'Arial'
+# plt.rcParams['savefig.dpi'] = plot_params.dpi
+# plt.rcParams['font.family'] = 'Dejavu Sans'
+# plt.rcParams['font.sans-serif'] = 'Arial'
 plt.rcParams['axes.spines.right'] = False
 plt.rcParams['axes.spines.top'] = False
 plt.rcParams['axes.labelsize'] = plot_params.axis_fontsize 
@@ -207,7 +207,8 @@ plt.rcParams['legend.fontsize'] = plot_params.axis_fontsize
 plt.rcParams['legend.loc'] = 'upper left'
 plt.rcParams['legend.borderaxespad'] = 1.1
 plt.rcParams['legend.borderpad'] = 1.1
-
+plt.rcParams['pdf.fonttype'] = 42
+plt.rcParams['ps.fonttype'] = 42
 
 def get_sorted_units_and_apparatus_kinematics_with_metadata(nwb_prc, reaches_key, plot=False):
     units          = nwb_prc.units.to_dataframe()
@@ -319,8 +320,8 @@ def generate_event_raster(units, units_res, reaches, preTime=1, postTime=1,
     reach_starts_to_plot = [start for idx, start in enumerate(reach_start_times) if idx in reaches_to_plot]
     reach_ends_to_plot   = [stop  for idx, stop  in enumerate(reach_end_times)   if idx in reaches_to_plot]
      
-    fig_label  = f'rasterplot_reaches_{reaches_to_plot[0]}_thru_{reaches_to_plot[-1]}.png'
-    peth_label = f'raster_and_peth_plot_reaches_{reaches_to_plot[0]}_thru_{reaches_to_plot[-1]}.png'  
+    fig_label  = f'rasterplot_reaches_{reaches_to_plot[0]}_thru_{reaches_to_plot[-1]}.pdf'
+    peth_label = f'raster_and_peth_plot_reaches_{reaches_to_plot[0]}_thru_{reaches_to_plot[-1]}.pdf'  
     
     spiketrains = []
     for unit_name in units_to_plot:# in units.iterrows():
@@ -361,7 +362,7 @@ def generate_event_raster(units, units_res, reaches, preTime=1, postTime=1,
     plt.show()
     
     os.makedirs(plots / paperFig, exist_ok=True)
-    fig0.savefig(plots / paperFig / peth_label,  dpi=plot_params.dpi)
+    fig0.savefig(plots / paperFig / peth_label)
    
     
 
@@ -495,8 +496,8 @@ def plot_fig1_trajectory_sampling(units_res, reaches, reachNum = 3, mod_start_ti
             # ax.w_zaxis.line.set_color('black')
             ax.view_init(view_angle[0], view_angle[1])
         
-        fig0.savefig(plots / paperFig / f'{marmcode}_trajectory_sampling_pos_{sampleNum}.png', bbox_inches='tight', dpi=plot_params.dpi)
-        fig1.savefig(plots / paperFig / f'{marmcode}_velocity_sampling_pos_{sampleNum}.png', bbox_inches='tight', dpi=plot_params.dpi)
+        fig0.savefig(plots / paperFig / f'{marmcode}_trajectory_sampling_pos_{sampleNum}.pdf', bbox_inches='tight', pad_inches=0)
+        fig1.savefig(plots / paperFig / f'{marmcode}_velocity_sampling_pos_{sampleNum}.pdf', bbox_inches='tight', pad_inches=0)
 
         fig2, ax2 = plt.subplots(figsize = plot_params.traj_vel_sample_figsize, dpi=plot_params.dpi)
         fig3, ax3 = plt.subplots(figsize = plot_params.traj_vel_sample_figsize, dpi=plot_params.dpi)
@@ -546,8 +547,8 @@ def plot_fig1_trajectory_sampling(units_res, reaches, reachNum = 3, mod_start_ti
         
         
         
-        fig2.savefig(plots / paperFig / f'{marmcode}_trajectory_sampling_vel_{sampleNum}.png', bbox_inches='tight', dpi=plot_params.dpi)
-        fig3.savefig(plots / paperFig / f'{marmcode}_velocity_sampling_vel_{sampleNum}.png', bbox_inches='tight', dpi=plot_params.dpi)
+        fig2.savefig(plots / paperFig / f'{marmcode}_trajectory_sampling_vel_{sampleNum}.pdf', bbox_inches='tight', pad_inches=0)
+        fig3.savefig(plots / paperFig / f'{marmcode}_velocity_sampling_vel_{sampleNum}.pdf', bbox_inches='tight', pad_inches=0)
   
         
         
@@ -660,7 +661,7 @@ def plot_fig1_trajectory_sampling(units_res, reaches, reachNum = 3, mod_start_ti
         # ax.set_zlabel('z', fontsize = plot_params.axis_fontsize)
     
     os.makedirs(plots / paperFig, exist_ok=True)
-    fig4.savefig(plots / paperFig / f'{marmcode}_pos_with_modulation.png', bbox_inches='tight',  dpi=plot_params.dpi)
+    fig4.savefig(plots / paperFig / f'{marmcode}_pos_with_modulation.pdf', bbox_inches='tight', pad_inches=0)
     
     # for ax in [ax2, ax3]:
     #     ax.set_xlabel('Time (ms)', fontsize = plot_params.axis_fontsize)
@@ -681,10 +682,10 @@ def plot_fig1_trajectory_sampling(units_res, reaches, reachNum = 3, mod_start_ti
         
     plt.show()
         
-    # fig0.savefig(os.path.join(plot_storage, f'{marmcode}_trajectory_sampling_pos.png'), bbox_inches='tight', dpi=plot_params.dpi)
-    # fig1.savefig(os.path.join(plot_storage, f'{marmcode}_velocity_sampling_pos.png'), bbox_inches='tight', dpi=plot_params.dpi)
-    # fig2.savefig(os.path.join(plot_storage, f'{marmcode}_trajectory_sampling_vel.png'), bbox_inches='tight', dpi=plot_params.dpi)
-    # fig3.savefig(os.path.join(plot_storage, f'{marmcode}_velocity_sampling_vel.png'), bbox_inches='tight', dpi=plot_params.dpi)
+    # fig0.savefig(os.path.join(plot_storage, f'{marmcode}_trajectory_sampling_pos.pdf'), dpi=plot_params.dpi)
+    # fig1.savefig(os.path.join(plot_storage, f'{marmcode}_velocity_sampling_pos.pdf'), dpi=plot_params.dpi)
+    # fig2.savefig(os.path.join(plot_storage, f'{marmcode}_trajectory_sampling_vel.pdf'), dpi=plot_params.dpi)
+    # fig3.savefig(os.path.join(plot_storage, f'{marmcode}_velocity_sampling_vel.pdf'), dpi=plot_params.dpi)
     
     return
 

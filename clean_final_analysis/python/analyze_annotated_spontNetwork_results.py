@@ -39,8 +39,8 @@ sys.path.insert(0, str(code_path))
 from utils import get_interelectrode_distances_by_unit, load_dict_from_hdf5, save_dict_to_hdf5
 from hatlab_nwb_functions import get_sorted_units_and_apparatus_kinematics_with_metadata, remove_duplicate_spikes_from_good_single_units   
 
-marmcode='MG'
-other_marm = None #'MG' #None
+marmcode='TY'
+other_marm = 'MG' #'MG' #None
 fig_mode='paper'
 save_kinModels_pkl = False
 skip_network_permutations = True
@@ -440,7 +440,7 @@ def plot_result_on_channel_map(units_res, jitter_radius = .15, hue_key='W_in',
     
     fig_base = os.path.join(plots, paperFig)
     gen_test_label = '' if gen_test_behavior is None else gen_test_behavior
-    fig.savefig(os.path.join(fig_base, f'{title}_{hue_key}_on_array_map_{gen_test_label}.png'), bbox_inches='tight', dpi=plot_params.dpi)    
+    fig.savefig(os.path.join(fig_base, f'{title}_{hue_key}_on_array_map_{gen_test_label}.pdf'), bbox_inches='tight', pad_inches=0)    
               
 def plot_model_auc_comparison(units_res, x_key, y_key, minauc = 0.5, maxauc = 1.0, hue_key='W_in', 
                               style_key='cortical_area', targets=None, col_key=None, hue_order=None, 
@@ -588,7 +588,7 @@ def plot_model_auc_comparison(units_res, x_key, y_key, minauc = 0.5, maxauc = 1.
     if gen_test_behavior.lower()=='spont':
         plot_name += f'_coloredBy_{params.test_behavior}'
 
-    fig.savefig(Path(fig_base) / f'{plot_name}{extra_label}.png', bbox_inches='tight', dpi=plot_params.dpi)
+    fig.savefig(Path(fig_base) / f'{plot_name}{extra_label}.pdf', bbox_inches='tight', pad_inches=0)
     units_res_plots.to_csv(f'{fig_base}_{paperFig}_{plot_name}{extra_label}.csv')
 
     return sign_test
@@ -808,7 +808,7 @@ def plot_functional_networks(FN, units_res, FN_key = 'split_reach_FNs',
             ax1.set_ylim(0, 100)
             
             fig.savefig(os.path.join(plots, paperFig, 
-                                     f'{marmcode}_functional_network_{title.replace(" ", "_").replace("-", "_")}.png'), bbox_inches='tight', dpi=plot_params.dpi)
+                                     f'{marmcode}_functional_network_{title.replace(" ", "_").replace("-", "_")}.pdf'), bbox_inches='tight', pad_inches=0)
             np.savetxt(os.path.join(plots, f'{paperFig}_functional_network_{title.replace(" ", "_").replace("-", "_")}.csv'), network_copy, delimiter=',') 
 
             plt.show()
@@ -829,7 +829,7 @@ def plot_functional_networks(FN, units_res, FN_key = 'split_reach_FNs',
             title = title.replace('\n', '_')
             gen_test_label = '' if gen_test_behavior is None else gen_test_behavior
             fig.savefig(os.path.join(plots, paperFig, 
-                                     f'{marmcode}_functional_network_{gen_test_label}_{title.replace(" ", "_").replace("-", "_")}.png'), bbox_inches='tight', dpi=plot_params.dpi)
+                                     f'{marmcode}_functional_network_{gen_test_label}_{title.replace(" ", "_").replace("-", "_")}.pdf'), bbox_inches='tight', pad_inches=0)
             np.savetxt(os.path.join(plots, f'{paperFig}_{gen_test_label}_functional_network_{title.replace(" ", "_").replace("-", "_")}.csv'), network_copy, delimiter=',') 
 
             plt.show()
@@ -908,7 +908,7 @@ def plot_weights_versus_interelectrode_distances(FN, spontaneous_FN, electrode_d
             ymin, ymax = ax2.get_ylim()
         plt.show()
         
-        fig2.savefig(os.path.join(plots, paperFig, f'{marmcode}_weights_by_distance_Rest_Locomotion.png'), bbox_inches='tight', dpi=plot_params.dpi)
+        fig2.savefig(os.path.join(plots, paperFig, f'{marmcode}_weights_by_distance_Rest_Locomotion.pdf'), bbox_inches='tight', pad_inches=0)
         dist_counts = behavior_df.groupby('Distance').count()['Wji']
         dist_counts.to_csv(os.path.join(plots, 'Rest_Locomotion_FigS_9_10a_counts.csv'))
         behavior_df.to_csv(os.path.join(plots, 'Rest_Locomotion_FigS_9_10a_values.csv'))
@@ -926,7 +926,7 @@ def plot_weights_versus_interelectrode_distances(FN, spontaneous_FN, electrode_d
         else:
             ymin, ymax = ax3.get_ylim()
         plt.show()
-        fig3.savefig(os.path.join(plots, paperFig, f'{marmcode}_weights_by_distance_Extension_Retraction.png'), bbox_inches='tight', dpi=plot_params.dpi)
+        fig3.savefig(os.path.join(plots, paperFig, f'{marmcode}_weights_by_distance_Extension_Retraction.pdf'), bbox_inches='tight', pad_inches=0)
         dist_counts = ext_ret_df.groupby('Distance').count()['Wji']
         dist_counts.to_csv(os.path.join(plots, 'Extension_Retraction_FigS_9_10c_counts.csv'))
         ext_ret_df.to_csv(os.path.join(plots, 'Extension_Retraction_FigS_9_10c_values.csv'))
@@ -951,7 +951,7 @@ def plot_weights_versus_interelectrode_distances(FN, spontaneous_FN, electrode_d
     #         ymin, ymax = ax2.get_ylim()
     #     sns.despine(ax=ax2)
     #     plt.show()
-    #     fig2.savefig(os.path.join(plots, paperFig, f'{marmcode}_weights_by_distance_{label}.png'), bbox_inches='tight', dpi=plot_params.dpi)
+    #     fig2.savefig(os.path.join(plots, paperFig, f'{marmcode}_weights_by_distance_{label}.pdf'))
 
         
     else:
@@ -975,7 +975,7 @@ def plot_weights_versus_interelectrode_distances(FN, spontaneous_FN, electrode_d
         sns.despine(ax=ax)
         plt.show()
         
-        fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_weights_by_distance.png'), bbox_inches='tight', dpi=plot_params.dpi)
+        fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_weights_by_distance.pdf'), bbox_inches='tight', pad_inches=0)
         dist_counts = weights_df.groupby('Distance').count()['Wji']
         dist_counts.to_csv(os.path.join(plots, 'Fig1d_counts.csv'))
         weights_df.to_csv(os.path.join(plots, 'Fig1d_values.csv'))
@@ -1293,7 +1293,7 @@ def evaluate_effect_of_network_shuffles(lead_lag_key, comparison_model,
     # fig.set_titles('Shuffled {col_name}:' +  f' {comparison_model}, {target_string}')
     # fig.set(ylim=ylim)
     # fig.set_axis_labels('Percent of Weights Shuffled', 'AUC Percent Loss')
-    fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_shuffled_network_auc_loss_summary_figure_{comparison_model}_{target_string}_alpha_pt0{alpha*100}.png'), bbox_inches='tight', dpi=plot_params.dpi)    
+    fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_shuffled_network_auc_loss_summary_figure_{comparison_model}_{target_string}_alpha_pt0{alpha*100}.pdf'), bbox_inches='tight', pad_inches=0)    
     train_auc_df.to_csv(os.path.join(plots, 'Fig4.csv'))
 
     return train_auc_df
@@ -1348,7 +1348,7 @@ def plot_modulation_for_subsets(auc_df, paperFig = 'unknown', figname_mod = '', 
             # ax.set_xlabel(metric, fontsize=plot_params.axis_fontsize)
             # ax.text(tmp_df[metric].max()*0.9, ax.get_ylim()[-1]*0.25, f'p={pval}', horizontalalignment='center', fontsize = 12)
             # plt.show()        
-            # fig.savefig(os.path.join(plot_save_dir, f'{marmcode}_distribution_{metric}_huekey_UnitsSubset{figname_mod}.png'), bbox_inches='tight', dpi=plot_params.dpi)    
+            # fig.savefig(os.path.join(plot_save_dir, f'{marmcode}_distribution_{metric}_huekey_UnitsSubset{figname_mod}.pdf'))    
 
             fig, ax = plt.subplots(figsize=plot_params.distplot_figsize)
             sns.kdeplot(ax=ax, data=tmp_df.loc[tmp_df['Units Subset'] == 'Non-Specific', :], linewidth=plot_params.distplot_linewidth,
@@ -1366,7 +1366,7 @@ def plot_modulation_for_subsets(auc_df, paperFig = 'unknown', figname_mod = '', 
             ax.set_xlabel(xlabel, fontsize=plot_params.axis_fontsize)
             ax.text(tmp_df[metric].max()*0.75, ax.get_ylim()[-1]*0.6, f'p={pval}', horizontalalignment='left', fontsize = plot_params.tick_fontsize)
             plt.show()        
-            fig.savefig(os.path.join(plot_save_dir, f'{figname_mod[1:]}_{marmcode}_distribution_{metric}_histogram_highlighted_with_reachspecific{figname_mod}.png'), bbox_inches='tight', dpi=plot_params.dpi)    
+            fig.savefig(os.path.join(plot_save_dir, f'{figname_mod[1:]}_{marmcode}_distribution_{metric}_histogram_highlighted_with_reachspecific{figname_mod}.pdf'), bbox_inches='tight', pad_inches=0)    
             tmp_df.to_csv(os.path.join(plot_save_dir, f'{figname_mod[1:]}_{marmcode}_distribution_{metric}_histogram_highlighted_with_reachspecific{figname_mod}.csv'))
 
 def add_neuron_classifications(units_res):
@@ -1404,7 +1404,7 @@ def plot_average_frates_simple(average_rates_df, paperFig, to_plot=None, behavio
     ax.set_xlabel('Firing rate (spikes/s)')
     ax.set_xlim([0, 150])
     ax.set_yticks([])
-    fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_behavior_firing_rates_cumulative.png'), bbox_inches='tight', dpi=plot_params.dpi)    
+    fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_behavior_firing_rates_cumulative.pdf'), bbox_inches='tight', pad_inches=0)    
     
     fig1, ax1 = plt.subplots(figsize = plot_params.frate_figsize)
     sns.kdeplot(data=frates_sns, linewidth=plot_params.traj_linewidth,
@@ -1414,7 +1414,7 @@ def plot_average_frates_simple(average_rates_df, paperFig, to_plot=None, behavio
     ax1.set_xlim([0, 150])
     ax1.set_yticks([])
     ax1.set_xlabel('Firing rate (spikes/s)')
-    fig1.savefig(os.path.join(plots, paperFig, f'{marmcode}_behavior_firing_rates.png'), bbox_inches='tight', dpi=plot_params.dpi)    
+    fig1.savefig(os.path.join(plots, paperFig, f'{marmcode}_behavior_firing_rates.pdf'), bbox_inches='tight', pad_inches=0)    
     frates_sns.to_csv(os.path.join(plots, paperFig, f'{marmcode}_behavior_firing_rates.csv'))
 
     fig2, ax2 = plt.subplots(figsize = plot_params.frate_figsize)
@@ -1422,7 +1422,7 @@ def plot_average_frates_simple(average_rates_df, paperFig, to_plot=None, behavio
                 linewidth=plot_params.traj_linewidth,
                 x='Rate', hue='Behavior', common_norm=False, bw_adjust=0.4, cumulative=False)
     sns.move_legend(ax1, 'upper right')
-    # fig2.savefig(os.path.join(plots, paperFig, f'{marmcode}_extension_retraction_firing_rates.png'), bbox_inches='tight', dpi=plot_params.dpi)    
+    # fig2.savefig(os.path.join(plots, paperFig, f'{marmcode}_extension_retraction_firing_rates.pdf'))    
 
     plt.show()
     
@@ -1443,7 +1443,7 @@ def plot_average_frates_simple(average_rates_df, paperFig, to_plot=None, behavio
     # sns.heatmap(ax=ax, data=cosine_sim_df, annot=True, mask=None, cmap='cividis',
     #             square=True, linewidths=.5, cbar_kws={"shrink": .5})
     # ax.set_title(f'Cosine Similarity: Average Firing Rates')
-    # fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_GAS_{sub_basis}.png'), bbox_inches='tight', dpi=plot_params.dpi)    
+    # fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_GAS_{sub_basis}.pdf'))    
 
     plt.show()
     
@@ -1465,7 +1465,7 @@ def plot_wji_distributions_for_subsets(weights_df, paperFig = 'unknown', figname
         ax.set_yticks([0, 1])
         sns.despine(ax=ax)
         plt.show()
-        fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_cumDist_Wji_{sub_basis}_huekey_FNkey{figname_mod}.png'), bbox_inches='tight', dpi=plot_params.dpi)
+        fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_cumDist_Wji_{sub_basis}_huekey_FNkey{figname_mod}.pdf'), bbox_inches='tight', pad_inches=0)
         med_out = median_test(weights_df.loc[(weights_df['Units Subset'] == sub_basis) & (weights_df['FN_key'] == 'reachFN1') , 'Wji'], 
                               weights_df.loc[(weights_df['Units Subset'] == sub_basis) & (weights_df['FN_key'] == 'spontaneousFN' ) , 'Wji'])
         print(f'Wji_{sub_basis}{figname_mod}: reachFN1 v spont, p={med_out[1]}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
@@ -1488,7 +1488,7 @@ def plot_wji_distributions_for_subsets(weights_df, paperFig = 'unknown', figname
         sns.despine(ax=ax)
         ax.set_yticks([0, 1])
         plt.show()
-        fig.savefig(os.path.join(plots, paperFig, f'{marmcode}cumDist_Wji_{FN_key}_huekey_UnitsSubset{figname_mod}.png'), bbox_inches='tight', dpi=plot_params.dpi)    
+        fig.savefig(os.path.join(plots, paperFig, f'{marmcode}cumDist_Wji_{FN_key}_huekey_UnitsSubset{figname_mod}.pdf'), bbox_inches='tight', pad_inches=0)    
 
         med_out = median_test(weights_df.loc[(weights_df['Units Subset'] == 'Reach-Specific') & (weights_df['FN_key'] == FN_key) , 'Wji'], 
                               weights_df.loc[(weights_df['Units Subset'] == 'Non-Specific') & (weights_df['FN_key'] == FN_key ) , 'Wji'])
@@ -1517,7 +1517,7 @@ def plot_wji_distributions_for_subsets(weights_df, paperFig = 'unknown', figname
                 ax.set_yticks([0, 1])
                 ax.set_xlabel(w_diff_label)
                 plt.show()
-                fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_{w_diff_key}_cumulative_dist_{FN_key}_minus_spont{figname_mod}.png'), bbox_inches='tight', dpi=plot_params.dpi)
+                fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_{w_diff_key}_cumulative_dist_{FN_key}_minus_spont{figname_mod}.pdf'), bbox_inches='tight', pad_inches=0)
                 med_out = median_test(weights_df.loc[(weights_df['Units Subset'] == 'Reach-Specific') & (weights_df['FN_key'] == FN_key), w_diff_key], 
                                       weights_df.loc[(weights_df['Units Subset'] == 'Non-Specific')   & (weights_df['FN_key'] == FN_key), w_diff_key])
                 print(f'{w_diff_key}_{FN_key}{figname_mod}:  reach-spec vs non-spec, p={med_out[1]}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
@@ -1537,11 +1537,11 @@ def plot_wji_distributions_for_subsets(weights_df, paperFig = 'unknown', figname
     #           fontsize = plot_params.tick_fontsize)
     # ax.set_ylabel('$W_{{ji}}$')
     # sns.despine(ax=ax)
-    # fig.savefig(os.path.join(plots, 'FigS3', f'{marmcode}_striplot_Wji_groupedBy_UnitsSubset_huekey_FNkey{figname_mod}.png'), bbox_inches='tight', dpi=plot_params.dpi)       
+    # fig.savefig(os.path.join(plots, 'FigS3', f'{marmcode}_striplot_Wji_groupedBy_UnitsSubset_huekey_FNkey{figname_mod}.pdf'))       
 
     # fig = sns.relplot(data=weights_df, x='pearson_r', y='Wji', col='Units Subset', kind='scatter')
     # plt.show() 
-    # fig.savefig(os.path.join(plots, 'unknown', f'{marmcode}_subnetwork_pearson_r_squared_vs_wji_colkey_UnitsSubset{figname_mod}.png'), bbox_inches='tight', dpi=plot_params.dpi)    
+    # fig.savefig(os.path.join(plots, 'unknown', f'{marmcode}_subnetwork_pearson_r_squared_vs_wji_colkey_UnitsSubset{figname_mod}.pdf'))    
 
 def graph_alignment_score(FN_comps):
     gas = 2*FN_comps.min(axis=1).sum() / FN_comps.sum(axis=1).sum(axis=0) 
@@ -1577,7 +1577,7 @@ def make_FN_similarity_plots(FN_df, sub_basis, paperFig, gen_test_behavior):
     sns.heatmap(ax=ax, data=gas_df, annot=True, mask=mask, cmap='cividis',
                 vmin=0.1, vmax=0.85, square=True, linewidths=.5, cbar_kws={"shrink": .5}, annot_kws={"size": plot_params.tick_fontsize-2})
     ax.set_title(f'GAS: {sub_basis}')
-    fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_GAS_{gen_test_behavior}_{sub_basis}.png'), bbox_inches='tight', dpi=plot_params.dpi)    
+    fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_GAS_{gen_test_behavior}_{sub_basis}.pdf'), bbox_inches='tight', pad_inches=0)    
 
     plt.show()
     
@@ -1595,7 +1595,7 @@ def plot_trajectory_correlation_and_auc_distributions_for_subsets(auc_df, weight
     sns.despine(ax=ax)
     ax.set_xlabel('Full kinematics AUC', fontsize=plot_params.axis_fontsize)
     plt.show()        
-    fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_cumDist_KinAUC_huekey_UnitsSubset{figname_mod}.png'), bbox_inches='tight', dpi=plot_params.dpi)    
+    fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_cumDist_KinAUC_huekey_UnitsSubset{figname_mod}.pdf'), bbox_inches='tight', pad_inches=0)    
     auc_df.to_csv(os.path.join(plots, paperFig, f'{marmcode}_cumDist_KinAUC_huekey_UnitsSubset{figname_mod}.csv'))
 
     #---------------------------------------------------------------------------------
@@ -1617,7 +1617,7 @@ def plot_trajectory_correlation_and_auc_distributions_for_subsets(auc_df, weight
     sns.despine(ax=ax)
     ax.set_xlabel('Full kinematics AUC', fontsize=plot_params.axis_fontsize)
     plt.show()        
-    fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_distribution_KinAUC_huekey_UnitsSubset{figname_mod}.png'), bbox_inches='tight', dpi=plot_params.dpi)    
+    fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_distribution_KinAUC_huekey_UnitsSubset{figname_mod}.pdf'), bbox_inches='tight', pad_inches=0)    
     auc_df.to_csv(os.path.join(plots, paperFig, f'{marmcode}_distribution_KinAUC_huekey_UnitsSubset{figname_mod}.csv'))
 
     #---------------------------------------------------------------------------------    
@@ -1639,7 +1639,7 @@ def plot_trajectory_correlation_and_auc_distributions_for_subsets(auc_df, weight
     ax.set_xlabel('Preferred trajectory\ncorrelation')
     sns.despine(ax=ax)
     plt.show()    
-    fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_distribution_pearson_r_huekey_UnitsSubset{figname_mod}.png'), bbox_inches='tight', dpi=plot_params.dpi)    
+    fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_distribution_pearson_r_huekey_UnitsSubset{figname_mod}.pdf'), bbox_inches='tight', pad_inches=0)    
     # weights_df.to_csv(os.path.join(plots, paperFig, f'{marmcode}_distribution_pearson_r_huekey_UnitsSubset{figname_mod}.csv'))
 
 def NO_SUMS_plot_in_and_out_weights_of_functional_groups(units_res, annotated_FN_dict, outside_group_only = False, 
@@ -2172,7 +2172,7 @@ def find_reach_specific_group(diff_df, model_1, model_2, paperFig = 'FigS5', gen
     
     plt.show()
 
-    fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_classifier_selection_{gen_test_behavior}.png'), bbox_inches='tight', dpi=plot_params.dpi)
+    fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_classifier_selection_{gen_test_behavior}.pdf'), bbox_inches='tight', pad_inches=0)
     sorted_diff_df.to_csv(os.path.join(plots, f'{paperFig}_{marmcode}_classifier_selection_{gen_test_behavior}.csv'))
     
     # reach_specific_units_byStats = diff_df.index[diff_df['generalization_proportion'] >= .95]    
@@ -2217,7 +2217,7 @@ def plot_FN_differences(FN1, FN2, CS_FN1, CS_FN2, CI_FN1, CI_FN2,
     ax.set_yticks([0, 1])
     ax.set_xlabel(f'$W_{{ji}}$ ({FN_labels[0]}) - $W_{{ji}}$ ({FN_labels[1]})')
     plt.show()
-    fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_w_diff_cumulative_dist_reachFN1_minus_{FN_labels[1]}'), bbox_inches='tight', dpi=plot_params.dpi)
+    fig.savefig(os.path.join(plots, paperFig, f'{marmcode}_w_diff_cumulative_dist_reachFN1_minus_{FN_labels[1]}.pdf'), bbox_inches='tight', pad_inches=0)
     med_out = median_test(diff_df.loc[(diff_df['Units Subset'] == 'Reach-Specific') , 'w_diff'], 
                           diff_df.loc[(diff_df['Units Subset'] == 'Non-Specific'), 'w_diff'])
     print(f'Wji-Difference_reachFN1:  reach-spec vs non-spec, p={med_out[1]}, {med_out[-1][0,0]}a-{med_out[-1][1,0]}b, {med_out[-1][0,1]}a-{med_out[-1][1,1]}b')
@@ -2385,7 +2385,7 @@ def compute_and_analyze_trajectory_correlations(units_res, posTraj_mean, velTraj
                 ax.set_title(f'Units {pair[0]} and {pair[1]}, r = {round(corr, 2)}')
                 plt.show()
                 
-                fig.savefig(os.path.join(plots, 'unknown', f'{marmcode}_corr_pair_pathlets_{pair[0]}_{pair[1]}.png'), bbox_inches='tight', dpi=plot_params.dpi)
+                fig.savefig(os.path.join(plots, 'unknown', f'{marmcode}_corr_pair_pathlets_{pair[0]}_{pair[1]}.pdf'), bbox_inches='tight', pad_inches=0)
 
     
     if FN is None:

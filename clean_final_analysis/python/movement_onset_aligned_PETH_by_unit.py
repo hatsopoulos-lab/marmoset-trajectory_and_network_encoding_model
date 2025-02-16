@@ -22,32 +22,47 @@ import dill
 from pathlib import Path
 from scipy.signal import savgol_filter
 import pandas as pd
+from scipy.ndimage import median_filter
 
 data_path = Path('/project/nicho/projects/dalton/network_encoding_paper/clean_final_analysis/data')
 code_path = Path('/project/nicho/projects/marmosets/code_database/analysis/trajectory_encoding_model/clean_final_analysis/')
-plot_path = Path('/project/nicho/projects/dalton/network_encoding_paper/clean_final_analysis/plots/')
+plot_path = Path('/project/nicho/projects/dalton/grant_work_with_context_specific_units/plots/')
 
 sys.path.insert(0, str(code_path))
 from hatlab_nwb_functions import remove_duplicate_spikes_from_good_single_units   
 from utils import load_dict_from_hdf5
 
 marmcode = 'TY'
+custom_params = {"axes.spines.right": False, "axes.spines.top": False}
+sns.set_theme(context='notebook', style="ticks", palette='Dark2', rc=custom_params)
 
 if marmcode == 'TY':
     nwb_analysis_file = data_path / 'TY' / 'TY20210211_freeAndMoths-003_resorted_20230612_DM.nwb'
     reach_specific_units = [15, 19, 26, 48, 184, 185, 246, 267, 273, 321, 327, 358, 375, 417, 457, 762, 790, 856, 887]
+    best_lead_lag_key = 'lead_100_lag_300'
+    bad_units_list = None
 elif marmcode == 'MG':
     nwb_analysis_file = data_path / 'MG' / 'MG20230416_1505_mothsAndFree-002_processed_DM.nwb'
     reach_specific_units = [87, 96, 225, 231, 246, 253, 524, 711, 780]#[225, 246, 253, 524, 780]#[87, 225, 246, 253, 524, 711, 780]
+    best_lead_lag_key = 'lead_100_lag_300'
+    bad_units_list = [181, 440]
+
+frate_thresh = 2
+snr_thresh = 3
 
 dataset_code = nwb_analysis_file.stem.split('_')[0]
-plot_storage = nwb_analysis_file.parent.parent.parent / 'plots' / 'reaching_PETHs'
+plot_storage = plot_path / 'reaching_PETHs' / marmcode
 modulation_data_storage = nwb_analysis_file.parent / f'{nwb_analysis_file.stem}_modulationData_normalizedIndex.pkl'
+
+results_file_tag = 'network_models_created'
+results_file   = nwb_analysis_file.parent / f'{nwb_analysis_file.stem}_{results_file_tag}.h5'
 
 gen_file_tag = 'generalization_experiments_LocClimbCombined'
 gen_results_file = nwb_analysis_file.parent / f'{nwb_analysis_file.stem}_{gen_file_tag}.h5'
 
 os.makedirs(plot_storage, exist_ok=True)
+os.makedirs(plot_storage / 'Context-specific', exist_ok=True)
+os.makedirs(plot_storage / 'Context-invariant', exist_ok=True)
 
 def get_sorted_units_and_apparatus_kinematics_with_metadata(nwb_prc, reaches_key, plot=False):
     units          = nwb_prc.units.to_dataframe()
@@ -100,7 +115,7 @@ def get_aligned_spiketrains_and_PETH(units, spike_times, align_times, preTime=1,
             
     return spiketrains, PETH, mod_index
 
-def generate_PETHs_aligned_to_reaching(units, reaches, kin_module, preTime=1, postTime=1):
+def generate_PETHs_aligned_to_reaching(units, units_res, reaches, kin_module, preTime=1, postTime=1):
     reach_start_times = [reach.start_time for idx, reach in reaches.iterrows()]
     reach_end_times   = [reach.stop_time for idx, reach in reaches.iterrows()]
     reach_peak_times  = [float(reach.peak_extension_times.split(',')[0]) for idx, reach in reaches.iterrows() if len(reach.peak_extension_times)>0]
@@ -108,12 +123,10 @@ def generate_PETHs_aligned_to_reaching(units, reaches, kin_module, preTime=1, po
     modulation_df = pd.DataFrame()
     for units_row, unit in units.iterrows():
         
-        if reach_specific_units is None:
-            fg = 'none'
-        elif int(unit.unit_name) in reach_specific_units:
-            fg = 'Reach-Specific'
-        else:
-            fg = 'Non-Specific'
+        if unit["unit_name"] not in units_res["unit_name"].values: 
+            continue
+        
+        units_res_row = units_res.loc[units_res["unit_name"] == unit.unit_name, :]
     
         spike_times = unit.spike_times
         
@@ -146,9 +159,9 @@ def generate_PETHs_aligned_to_reaching(units, reaches, kin_module, preTime=1, po
             savFilt = savgol_filter(PETH.as_array().flatten(), 13, 3)
 
             deviance = round(np.max(np.abs(savFilt - np.linspace(savFilt[0], savFilt[-1], PETH.shape[0]))), 1)
-            axP.plot(PETH.times, savFilt, '-r')
+            axP.plot(PETH.times, savFilt)
             
-            axM.plot(PETH.times, savFilt, '-r')
+            axM.plot(PETH.times, savFilt)
             axM.plot(PETH.times, np.linspace(savFilt[0], savFilt[-1], PETH.shape[0]), '-k')
             axM.set_ylim(np.floor(PETH_ymin), np.floor(PETH_ymin)+40)
             
@@ -194,7 +207,7 @@ def generate_PETHs_aligned_to_reaching(units, reaches, kin_module, preTime=1, po
             mod_label_list.append(f'modulation_{label}')
             dev_label_list.append(f'maxDev_{label}')
         
-        plt.savefig(pjoin(plot_storage, 'unit_%s.png' % unit.unit_name), dpi='figure', format=None, metadata=None,
+        plt.savefig(plot_storage / units_res_row["Functional Group"].values[0] / f'unit_{unit.unit_name}.png', dpi='figure', format=None, metadata=None,
                     bbox_inches=None, pad_inches=0.1,
                     facecolor='auto', edgecolor='auto',
                     backend=None
@@ -202,7 +215,7 @@ def generate_PETHs_aligned_to_reaching(units, reaches, kin_module, preTime=1, po
         
         plt.show()
         
-        tmp_df = pd.DataFrame(data=mod_list + dev_list + [unit.unit_name] + [fg]).T
+        tmp_df = pd.DataFrame(data=mod_list + dev_list + [unit.unit_name] + [units_res_row["Functional Group"]]).T
         tmp_df.columns = mod_label_list + dev_label_list + ['unit_name'] + ['FG']
         modulation_df = pd.concat((modulation_df, tmp_df), axis=0, ignore_index=True)
 
@@ -221,7 +234,89 @@ def modulation_in_functional_group(modulation_df, metric='modulation_RO', hue_or
     ax.text(modulation_df[metric].max()*0.9, 0.25, f'p={np.round(med_out[1], 4)}', horizontalalignment='center', fontsize = 12)
     plt.show()
 
+def add_generalization_experiments_to_units_df(units_res, gen_res):
+    
+    for model_key in gen_res['model_results'].keys():
+        if 'reach_test_FN' in model_key:
+            units_res[f'{model_key}_auc'] = gen_res['model_results'][model_key]['AUC'].mean(axis=-1)
+    
+    return units_res  
 
+def compute_performance_difference_by_unit(units_res, model_1, model_2):
+    
+    if model_1[-4:] != '_auc':
+        model_1 = model_1 + '_auc'
+    if model_2[-4:] != '_auc':
+        model_2 = model_2 + '_auc'
+    
+    cols = [col for col in units_res.columns if 'auc' not in col]
+    diff_df = units_res.loc[:, cols]
+    
+    dist_from_unity = np.abs(-1*units_res[model_1] + 1*units_res[model_2]) / np.sqrt(1**2+1**2)
+    
+    model_diff = pd.DataFrame(data = units_res[model_2] - units_res[model_1],
+                              columns = ['auc_diff'])
+    
+    model_dist = pd.DataFrame(data = dist_from_unity,
+                              columns = ['dist_from_unity'])
+    diff_df = pd.concat((diff_df, model_diff, model_dist), axis = 1)
+    
+    return diff_df
+
+def find_context_specific_group(diff_df, model_1, model_2, gen_test_behavior=None):
+
+
+    sorted_diff_df = diff_df.sort_values(by='auc_diff', ascending=False)
+    # sorted_diff_df['dist_positive_grad'] = np.hstack((np.abs(np.diff(sorted_diff_df['dist_from_unity'])),
+    #                                                   [np.nan]))     
+    sorted_diff_df['derivative_auc_diff'] = np.hstack((np.abs(np.diff(sorted_diff_df['auc_diff'])),
+                                                      [np.nan]))  
+    medFilt_grad = median_filter(sorted_diff_df['derivative_auc_diff'], 8) #TODO 9
+    sorted_diff_df['medfilt_derivative_auc_diff'] = medFilt_grad
+    lastUnit = np.where(medFilt_grad < 0.1  * np.nanmax(medFilt_grad))[0][0] #TODO 0.075
+    top_value_cut = -12 if marmcode=='TY' else -3 
+    tmp = sorted_diff_df['derivative_auc_diff'].values
+    tmp = tmp[~np.isnan(tmp)]
+    lastUnit = np.where(medFilt_grad < 0.1 * np.median(np.sort(tmp)[top_value_cut:]))[0][0] #TODO 0.075
+    if marmcode=='TY' and gen_test_behavior.lower()=='rest':
+        lastUnit = 60 # TODO
+
+    context_specific_units  = sorted_diff_df.index[:lastUnit] 
+    context_invariant_units = sorted_diff_df.index[lastUnit:]
+    
+    return context_specific_units, context_invariant_units    
+
+def summarize_model_results(units, lead_lag_keys):  
+    
+    if type(lead_lag_keys) != list:
+        lead_lag_keys = [lead_lag_keys]
+    
+    for lead_lag_key in lead_lag_keys:
+        
+        if 'all_models_summary_results' in results_dict[lead_lag_key].keys():
+            all_units_res = results_dict[lead_lag_key]['all_models_summary_results']
+        else:
+            all_units_res = units.copy()
+            
+        try:
+            all_units_res.drop(columns=['spike_times', 'n_spikes'], inplace=True)
+        except:
+            pass
+        
+        for model_key in results_dict[lead_lag_key]['model_results'].keys():
+            col_names = ['%s_auc' % model_key]  
+            results_keys = ['AUC']  
+
+            for col_name, results_key in zip(col_names, results_keys):                
+                if col_name not in all_units_res.columns and results_key in results_dict[lead_lag_key]['model_results'][model_key].keys(): 
+                    all_units_res[col_name] = results_dict[lead_lag_key]['model_results'][model_key][results_key].mean(axis=-1)
+                else:
+                    print('This model (%s, %s) has already been summarized in the all_models_summary_results dataframe' % (lead_lag_key, model_key))                    
+
+        results_dict[lead_lag_key]['all_models_summary_results'] = all_units_res.copy()
+        
+        return results_dict
+        
 if __name__ == '__main__':
     # io_acq = NWBHDF5IO(nwb_acquisition_file, mode='r')
     # nwb_acq = io_acq.read()
@@ -232,25 +327,34 @@ if __name__ == '__main__':
     reaches_key = [key for key in nwb_prc.intervals.keys() if 'reaching_segments' in key][0]
     
     units, reaches, kin_module = get_sorted_units_and_apparatus_kinematics_with_metadata(nwb_prc, reaches_key, plot=False)
+    # units = choose_units_for_model(units, quality_key = 'snr', quality_thresh = params.snr_thresh, frate_thresh = params.frate_thresh, bad_units_list=bad_units_list)
+
+    results_dict = load_dict_from_hdf5(results_file, top_level_list=False, convert_4d_array_to_list = True)    
+    results_dict = summarize_model_results(units=None, lead_lag_keys = best_lead_lag_key)
+
+    units_res = results_dict[best_lead_lag_key]['all_models_summary_results']
 
     generalization_results = load_dict_from_hdf5(gen_results_file)
-    units_res
+    units_res = add_generalization_experiments_to_units_df(units_res, generalization_results[best_lead_lag_key])
 
+    gen_test_behavior = 'spont'
     diff_df = compute_performance_difference_by_unit(units_res, f'traj_avgPos_{gen_test_behavior}_train_reach_test_FN_auc', 'traj_avgPos_reach_FN_auc')   
     # reach_specific_units = diff_df.index[(diff_df.auc_diff > 0) & (diff_df.dist_from_unity > params.reach_specific_thresh) & (diff_df.dist_from_unity < 0.04)]
-    reach_specific_units, non_specific_units = find_reach_specific_group(diff_df,
-                                                                         f'traj_avgPos_{gen_test_behavior}_train_reach_test_FN', 
-                                                                         'traj_avgPos_reach_FN',
-                                                                         paperFig = 'FigS10_and_11',
-                                                                         gen_test_behavior=gen_test_behavior)
-
-    modulation_df = generate_PETHs_aligned_to_reaching(units, reaches, kin_module, preTime=1, postTime=1)
+    context_specific_units, context_invariant_units = find_context_specific_group(diff_df,
+                                                                           f'traj_avgPos_{gen_test_behavior}_train_reach_test_FN', 
+                                                                           'traj_avgPos_reach_FN',
+                                                                           gen_test_behavior=gen_test_behavior)
+    
+    units_res['Functional Group'] = ['Context-invariant' for idx in range(units_res.shape[0])]
+    units_res.loc[context_specific_units, 'Functional Group'] = ['Context-specific' for idx in range(context_specific_units.size)]
+    
+    modulation_df = generate_PETHs_aligned_to_reaching(units, units_res, reaches, kin_module, preTime=1, postTime=1)  
     
     io_prc.close()
         
-    for met in modulation_df.columns[:6]:
-        modulation_df[met] = modulation_df[met].astype(float)
-        modulation_in_functional_group(modulation_df, metric=met, hue_order=['Reach-Specific', 'Non-Specific'])
+    # for met in modulation_df.columns[:6]:
+    #     modulation_df[met] = modulation_df[met].astype(float)
+    #     modulation_in_functional_group(modulation_df, metric=met, hue_order=['Reach-Specific', 'Non-Specific'])
     
-    with open(modulation_data_storage, 'wb') as f:
-        dill.dump(modulation_df, f, recurse=True) 
+    # with open(modulation_data_storage, 'wb') as f:
+    #     dill.dump(modulation_df, f, recurse=True) 

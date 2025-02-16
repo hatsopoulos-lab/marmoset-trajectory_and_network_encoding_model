@@ -30,7 +30,7 @@ sys.path.insert(0, str(code_path))
 from hatlab_nwb_functions import get_sorted_units_and_apparatus_kinematics_with_metadata   
 from utils import choose_units_for_model, get_interelectrode_distances_by_unit
 
-marmcode='TY'
+marmcode='MG'
 other_marm = None #'MG' #None #'MG' #None
 FN_computed = True
 fig_mode='paper'
@@ -254,6 +254,8 @@ plt.rcParams['legend.fontsize'] = plot_params.axis_fontsize
 plt.rcParams['legend.loc'] = 'upper left'
 plt.rcParams['legend.borderaxespad'] = 1.1
 plt.rcParams['legend.borderpad'] = 1.1
+plt.rcParams['pdf.fonttype'] = 42
+plt.rcParams['ps.fonttype'] = 42
 
     
 for fig_name in plot_params.figures_list:
@@ -360,8 +362,8 @@ def plot_reach_samples(nReaches = 3, reachset1 = None, reachset2 = None, color1 
         ax.set_zticks([params.apparatus_min_dims[2], params.apparatus_max_dims[2]])
     plt.show()
         
-    fig0.savefig(os.path.join(plots, paperFig, f'{marmcode}_reach_set1_reaches.png'), bbox_inches='tight', dpi=plot_params.dpi)
-    fig1.savefig(os.path.join(plots, paperFig, f'{marmcode}_reach_set2_reaches.png'), bbox_inches='tight', dpi=plot_params.dpi)
+    fig0.savefig(os.path.join(plots, paperFig, f'{marmcode}_reach_set1_reaches.pdf'), bbox_inches='tight', pad_inches=0)
+    fig1.savefig(os.path.join(plots, paperFig, f'{marmcode}_reach_set2_reaches.pdf'), bbox_inches='tight', pad_inches=0)
 
     
 
@@ -425,7 +427,7 @@ def plot_boxplot_of_trajectory_model_auc(units_res, other_marm = False, filter_o
     axes[1].set_ylabel('', fontsize = plot_params.axis_fontsize)    
     axes[1].set_yticklabels('', fontsize=plot_params.tick_fontsize)
     
-    fig.savefig(os.path.join(plots, paperFig, f'trajectory_model_auc_results.png'), bbox_inches='tight', dpi=plot_params.dpi)
+    fig.savefig(os.path.join(plots, paperFig, f'trajectory_model_auc_results.pdf'), bbox_inches='tight', pad_inches=0)
     box_df.to_csv(os.path.join(plots, f'{paperFig}_trajectory_model_auc_results.csv'))
 
     #### Plot scatter of tortuosity and mean speed
@@ -447,7 +449,7 @@ def plot_boxplot_of_trajectory_model_auc(units_res, other_marm = False, filter_o
     jfig.fig.set_dpi(300)
     jfig.fig.set_figheight(5)
     jfig.fig.set_figwidth(5)
-    # jfig.savefig(os.path.join(plots, paperFig, f'mean_speed_tortuosity_joint_plot.png'), bbox_inches='tight', dpi=plot_params.dpi)
+    # jfig.savefig(os.path.join(plots, paperFig, f'mean_speed_tortuosity_joint_plot.pdf'))
 
 
 def compute_AUC_distribution_statistics(model_keys, unit_idxs, lead_lag_key, plot=False):
@@ -651,15 +653,15 @@ def organize_results_by_model_for_all_lags(fig_mode, per=None, prop=None, paperF
             plt.show()
             
             if fig_mode == 'all':
-                fig.savefig(os.path.join(plots, paperFig, f'{name}_auc_leadlagsRange_unfiltered_WITH_LEGEND.png'), bbox_inches='tight', dpi=plot_params.dpi)
+                fig.savefig(os.path.join(plots, paperFig, f'{name}_auc_leadlagsRange_unfiltered_WITH_LEGEND.pdf'), bbox_inches='tight', pad_inches=0)
                 fig_df.to_csv(os.path.join(plots, f'{paperFig}_{name}_auc_leadlagsRange_unfiltered.csv'))
             else:
                 filtThresh = per if per is not None else int(prop*100)
-                figname = f'{name}_auc_leadlagsRange_filtered_by_{fig_mode}_{filtThresh}.png'
+                figname = f'{name}_auc_leadlagsRange_filtered_by_{fig_mode}_{filtThresh}.pdf'
                 if prop is not None:
-                    fig.savefig(os.path.join(plots, 'Fig3', figname), bbox_inches='tight', dpi=plot_params.dpi)
+                    fig.savefig(os.path.join(plots, 'Fig3', figname), bbox_inches='tight', pad_inches=0)
                 else:
-                    fig.savefig(os.path.join(plots, paperFig, figname), bbox_inches='tight', dpi=plot_params.dpi)
+                    fig.savefig(os.path.join(plots, paperFig, figname), bbox_inches='tight', pad_inches=0)
                 
             rel = sns.relplot(data=fig_df, x = 'Trajectory center (ms)', y='AUC', hue = 'Trajectory length (ms)', col='cortical_area', 
                               linestyle='-.', kind='line', err_style='bars', errorbar=("se", 1), marker='o', markersize=10, palette='tab10')
@@ -668,9 +670,9 @@ def organize_results_by_model_for_all_lags(fig_mode, per=None, prop=None, paperF
             plt.show()
             
             if fig_mode == 'all':
-                rel.savefig(os.path.join(plots, paperFig, f'{name}_auc_leadlagsRange_unfiltered_sepByArea.png'), bbox_inches='tight', dpi=plot_params.dpi)
+                rel.savefig(os.path.join(plots, paperFig, f'{name}_auc_leadlagsRange_unfiltered_sepByArea.pdf'), bbox_inches='tight', pad_inches=0)
             else:
-                rel.savefig(os.path.join(plots, paperFig, f'{figname.split(".png")[0]}_sepByArea.png'), bbox_inches='tight', dpi=plot_params.dpi)
+                rel.savefig(os.path.join(plots, paperFig, f'{figname.split(".pdf")[0]}_sepByArea.pdf'), bbox_inches='tight', pad_inches=0)
                 
         results.append(tmp_results)
     
@@ -765,7 +767,7 @@ def plot_mean_traj_center_by_area(units_res, weighted_mean = True, weightsKey='%
     
     plt.show()
     
-    fig.savefig(os.path.join(plots, 'brain_area_optimal_lead_lag_final_output.png'), bbox_inches='tight', dpi=plot_params.dpi) 
+    fig.savefig(os.path.join(plots, 'brain_area_optimal_lead_lag_final_output.pdf'), bbox_inches='tight', pad_inches=0) 
     
 
         
@@ -862,9 +864,9 @@ def plot_sweep_over_lead_lag(model_results_across_lags, filter_key):
     plt.show()
     
     if filter_key is None:
-        fig.savefig(os.path.join(plots, 'model_auc_over_leadlags_unfiltered.png'), bbox_inches='tight', dpi=plot_params.dpi)
+        fig.savefig(os.path.join(plots, 'model_auc_over_leadlags_unfiltered.pdf'), bbox_inches='tight', pad_inches=0)
     else:
-        fig.savefig(os.path.join(plots, 'model_auc_over_leadlags_filtered_by_%s.png' % filter_key), bbox_inches='tight', dpi=plot_params.dpi)
+        fig.savefig(os.path.join(plots, 'model_auc_over_leadlags_filtered_by_%s.pdf' % filter_key), bbox_inches='tight', pad_inches=0)
         
 def summarize_model_results(units, lead_lag_keys):  
     
@@ -915,7 +917,7 @@ def plot_model_auc_comparison(units_res, x_key, y_key, minauc = 0.5, maxauc=1.0,
     units_res_plots = units_res.copy()     
    
     plot_title = 'Targets: All units'
-    plot_name = 'area_under_curve_%s_%s.png' % (x_key, y_key)
+    plot_name = 'area_under_curve_%s_%s.pdf' % (x_key, y_key)
 
     fig, ax = plt.subplots(figsize = plot_params.aucScatter_figSize, dpi = plot_params.dpi)
     sns.scatterplot(ax = ax, data = units_res_plots, x = x_key, y = y_key, 
@@ -930,7 +932,7 @@ def plot_model_auc_comparison(units_res, x_key, y_key, minauc = 0.5, maxauc=1.0,
     ax.grid(False)
     plt.show()
     
-    # fig.savefig(os.path.join(plots, paperFig, plot_name), bbox_inches='tight', dpi=plot_params.dpi)
+    # fig.savefig(os.path.join(plots, paperFig, plot_name))
 
 def compute_and_analyze_pathlets(lead_lag_key, model, numplots, unitsToPlot=None, all_units_plot_subset = None, axlims=None):
     
@@ -1102,7 +1104,7 @@ def plot_pathlet(posTraj_mean, posTraj_samples, lead_lag_key, model, avgPos_mean
                 
                 ax.view_init(params.view_angle[0], params.view_angle[1])
                 plt.show()                
-                fig.savefig(os.path.join(plots, 'Fig2', f'{figname}pathlets.png' % unit), bbox_inches='tight', dpi=plot_params.dpi)
+                fig.savefig(os.path.join(plots, 'Fig2', f'{figname}pathlets.pdf' % unit), bbox_inches='tight', pad_inches=0)
                 
                 fig = plt.figure(figsize = plot_params.preferred_traj_figsize)
                 ax = plt.axes(projection='3d')
@@ -1135,7 +1137,7 @@ def plot_pathlet(posTraj_mean, posTraj_samples, lead_lag_key, model, avgPos_mean
         ax.view_init(params.view_angle[0], params.view_angle[1])
         plt.show()
         
-        fig.savefig(os.path.join(plots, 'Fig2', f'{figname}pathlets.png'), bbox_inches='tight', dpi=plot_params.dpi)
+        fig.savefig(os.path.join(plots, 'Fig2', f'{figname}pathlets.pdf'), bbox_inches='tight', pad_inches=0)
         np.savetxt(os.path.join(plots, f'Fig2_{figname}pathlets.csv'), source_data_storage, delimiter=',')
 
     
@@ -1219,8 +1221,8 @@ def plot_pathlet(posTraj_mean, posTraj_samples, lead_lag_key, model, avgPos_mean
         plt.show() 
         
         figname_mod = 'all' if all_units_plot_subset is None else pathlet_subset 
-        fig1.savefig(os.path.join(plots, 'FigS2', f'{figname_mod}_units_pathlets_noPos.png'), bbox_inches='tight', dpi=plot_params.dpi)
-        # fig2.savefig(os.path.join(plots, 'all_units_pathlets_withPos.png'), bbox_inches='tight', dpi=plot_params.dpi)
+        fig1.savefig(os.path.join(plots, 'FigS2', f'{figname_mod}_units_pathlets_noPos.pdf'), bbox_inches='tight', pad_inches=0)
+        # fig2.savefig(os.path.join(plots, 'all_units_pathlets_withPos.pdf'))
 
         np.savetxt(os.path.join(plots, f'FigS3_{figname_mod}_units_pathlets_noPos.csv'), source_data_storage, delimiter=',')
 
@@ -1308,7 +1310,7 @@ def compute_and_analyze_trajectory_correlations(units_res, posTraj_mean, velTraj
                 ax.set_title(f'Units {pair[0]} and {pair[1]}, r = {round(corr, 2)}')
                 plt.show()
                 
-                # fig.savefig(os.path.join(plots, 'unknown', f'corr_pair_pathlets_{pair[0]}_{pair[1]}.png'), bbox_inches='tight', dpi=plot_params.dpi)
+                # fig.savefig(os.path.join(plots, 'unknown', f'corr_pair_pathlets_{pair[0]}_{pair[1]}.pdf'))
 
     
     if FN is None:
@@ -1347,7 +1349,7 @@ def compute_and_analyze_trajectory_correlations(units_res, posTraj_mean, velTraj
     fig, ax = plt.subplots(figsize = (4, 4), dpi = plot_params.dpi)
     sns.scatterplot(ax = ax, data = df, x = 'Pearson_corr', y = 'Wji', s = 20, legend=True) 
     plt.show()
-    # fig.savefig(os.path.join(plots, 'Fig4', 'wji_vs_pearson_r.png'), bbox_inches='tight', dpi=plot_params.dpi)
+    # fig.savefig(os.path.join(plots, 'Fig4', 'wji_vs_pearson_r.pdf'))
     
     fig, ax = plt.subplots(figsize = (4, 4), dpi = plot_params.dpi)
     sns.scatterplot(ax = ax, data = df, x = 'r_squared', y = 'Wji', s = 20, legend=True) 
@@ -1356,17 +1358,17 @@ def compute_and_analyze_trajectory_correlations(units_res, posTraj_mean, velTraj
     fig, ax = plt.subplots(figsize = (4, 4), dpi = plot_params.dpi)
     sns.pointplot(ax=ax, data = df, x = 'Connection', y = 'Pearson_corr', color='black', errorbar=('ci', 99))
     plt.show()
-    # fig.savefig(os.path.join(plots, 'unknown', 'pearson_r_vs_connection.png'), bbox_inches='tight', dpi=plot_params.dpi)
+    # fig.savefig(os.path.join(plots, 'unknown', 'pearson_r_vs_connection.pdf'))
 
     fig, ax = plt.subplots(figsize = (4, 4), dpi = plot_params.dpi)
     sns.pointplot(ax=ax, data = df, x = 'Connection', y = 'r_squared', color='black', errorbar='se')
     plt.show()
-    # fig.savefig(os.path.join(plots, 'unknown', 'pearson_rsquare_vs_connection.png'), bbox_inches='tight', dpi=plot_params.dpi)
+    # fig.savefig(os.path.join(plots, 'unknown', 'pearson_rsquare_vs_connection.pdf'))
 
     fig, ax = plt.subplots(figsize = (4, 4), dpi = plot_params.dpi)
     sns.pointplot(ax=ax, data = df, x = 'Connection', y = 'Wji', color='black', errorbar='se')
     plt.show()
-    # fig.savefig(os.path.join(plots, 'unknown', 'wji_vs_connection.png'), bbox_inches='tight', dpi=plot_params.dpi)
+    # fig.savefig(os.path.join(plots, 'unknown', 'wji_vs_connection.pdf'))
 
     fig, ax = plt.subplots(figsize = plot_params.pearsonr_histsize, dpi = plot_params.dpi)
     sns.histplot(ax=ax, data = df, x = 'Pearson_corr', color='black', kde=True)
@@ -1382,7 +1384,7 @@ def compute_and_analyze_trajectory_correlations(units_res, posTraj_mean, velTraj
     ax.set_ylim(0, 1450)
     
     plt.show()
-    fig.savefig(os.path.join(plots, 'Fig2', 'pearson_r_histogram.png'), bbox_inches='tight', dpi=plot_params.dpi)
+    fig.savefig(os.path.join(plots, 'Fig2', 'pearson_r_histogram.pdf'), bbox_inches='tight', pad_inches=0)
     df.to_csv(os.path.join(plots, 'Fig2_pearson_r_histogram.csv'))
     
     return df
@@ -1666,7 +1668,7 @@ if __name__ == "__main__":
     #             kind='scatter', s = 20, col_wrap=3, legend=True) 
     # fig=plt.gcf()
     # plt.show()
-    # fig.savefig(os.path.join(plots, 'unknown', 'wji_vs_pearson_r_columns_by_connection.png'), bbox_inches='tight', dpi=plot_params.dpi) 
+    # fig.savefig(os.path.join(plots, 'unknown', 'wji_vs_pearson_r_columns_by_connection.pdf')) 
    
     # if save_kinModels_pkl:
     #     with open(pkl_outfile, 'wb') as f:

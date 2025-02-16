@@ -431,8 +431,8 @@ def identify_extension_and_retraction(reaches, save_data=True, plot=False, speed
             
             plt.show()
     
-            fig0.savefig(plots / paperFig / f'{marmcode}_extension_retraction_position_{reachNum}.png', bbox_inches='tight')
-            fig1.savefig(plots / paperFig / f'{marmcode}_extension_distance_{reachNum}.png', bbox_inches='tight')
+            fig0.savefig(plots / paperFig / f'{marmcode}_extension_retraction_position_{reachNum}.pdf', bbox_inches='tight', pad_inches=0)
+            fig1.savefig(plots / paperFig / f'{marmcode}_extension_distance_{reachNum}.pdf', bbox_inches='tight', pad_inches=0)
             np.savetxt(plots / f'{paperFig}_{marmcode}_extension_retraction_position_{reachNum}.csv', source_data_storage, delimiter=',')
 
         if speed_plot:    
@@ -485,7 +485,7 @@ def identify_extension_and_retraction(reaches, save_data=True, plot=False, speed
         ax.text(50, 0.015, ptext, horizontalalignment='center', fontsize = plot_params.tick_fontsize)
         plt.show()
     
-        fig.savefig(plots / paperFig / f'{marmcode}_extension_retraction_speed_distributions.png', bbox_inches='tight')
+        fig.savefig(plots / paperFig / f'{marmcode}_extension_retraction_speed_distributions.pdf', bbox_inches='tight', pad_inches=0)
         kin_df.to_csv(plots / f'{paperFig}_{marmcode}_extension_retraction_speed_distributions.csv')    
     
     extension_times = pd.DataFrame(data=zip(ext_start, ext_stop),
@@ -580,7 +580,7 @@ def examine_single_reach_kinematic_distributions(reaches, plot=False, paperFig=N
             ax.set_xlim(-10, 10)
         elif key == 'speed':
             ax.set_xlim(0, 100)
-        fig.savefig(plots / paperFig / f'{marmcode}_{key}_distributions_by_reach.png', bbox_inches='tight', dpi=plot_params.dpi)
+        fig.savefig(plots / paperFig / f'{marmcode}_{key}_distributions_by_reach.pdf', bbox_inches='tight', pad_inches=0)
         plt.show()
         
     
@@ -590,7 +590,7 @@ def examine_single_reach_kinematic_distributions(reaches, plot=False, paperFig=N
     g.map_upper(sns.scatterplot, s=2)
     g.map_lower(sns.scatterplot, s=2)
     g.map_diag(sns.kdeplot, lw=2)
-    plt.gcf().savefig(plots / paperFig / f'{marmcode}_velocity_pairGrid.png', bbox_inches='tight', dpi=plot_params.dpi)
+    plt.gcf().savefig(plots / paperFig / f'{marmcode}_velocity_pairGrid.pdf', bbox_inches='tight', pad_inches=0)
     plt.show()
      
     
